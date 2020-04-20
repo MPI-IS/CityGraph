@@ -11,7 +11,7 @@ from numpy.random import RandomState
 def get_current_time_in_ms():
     """Returns the current time in milliseconds.
 
-    ..note:: Used for seeding the pseudo random number generator.
+    :note: Used for seeding the pseudo random number generator.
     """
     return int(time.time() * 1000)
 
