@@ -1,3 +1,8 @@
 
+WALK = "walk"
+CAR = "car"
+BUS = "bus"
+TRAIN = "train"
+BICYCLE = "bicycle"
 
-modes = ("walk","car","bus","train","bicyle")
+MODES = (WALK,CAR,BUS,TRAIN,BICYCLE)
