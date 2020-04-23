@@ -17,7 +17,7 @@ class EdgeType(str, Enum):
     TRAM = "tram"
 
 
-class MobilityType(tuple, Enum):
+class MobilityType(Enum):
     """
     Type of human mobility.
     """
@@ -31,9 +31,9 @@ class MobilityType(tuple, Enum):
         EdgeType.TRAM
     )
 
-    CAR = (EdgeType.road, EdgeType.walk)
-    BIKE = (EdgeType.bike, ) + public_transport
-    WALK = (EdgeType.walk, )
+    CAR = (EdgeType.ROAD, EdgeType.WALK)
+    BIKE = (EdgeType.BIKE, ) + PUBLIC_TRANSPORT
+    WALK = (EdgeType.WALK, )
 
 
 class LocationType(str, Enum):
