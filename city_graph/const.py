@@ -2,7 +2,7 @@ from enum import Enum, unique
 
 
 @unique
-class EdgeType(Enum):
+class PathType(Enum):
     """
     Type of Topology edge.
     """
@@ -25,19 +25,20 @@ class MobilityType(tuple, Enum):
     """
 
     PUBLIC_TRANSPORT = (
-        EdgeType.WALK,
-        EdgeType.BUS,
-        EdgeType.TROLLEYBUS,
-        EdgeType.FERRY,
-        EdgeType.TRAIN,
-        EdgeType.TRAM
+        PathType.WALK,
+        PathType.BUS,
+        PathType.TROLLEYBUS,
+        PathType.FERRY,
+        PathType.TRAIN,
+        PathType.TRAM
     )
 
-    CAR = (EdgeType.ROAD, EdgeType.WALK)
-    BIKE = (EdgeType.BIKE, ) + PUBLIC_TRANSPORT
-    WALK = (EdgeType.WALK, )
+    CAR = (PathType.ROAD, PathType.WALK)
+    BIKE = (PathType.BIKE, ) + PUBLIC_TRANSPORT
+    WALK = (PathType.WALK, )
 
 
+@unique
 class LocationType(Enum):
     # Compiled from amenity, leisure and building type values in
     # OpenStreetMap. Please refer to:
