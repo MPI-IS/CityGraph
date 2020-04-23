@@ -1,23 +1,23 @@
 from enum import Enum
 
 
-class EdgeType(str, Enum):
+class EdgeType(Enum):
     """
     Type of Topology edge.
     """
 
-    ROAD = "road"
-    BIKE = "bike"
-    WALK = "walk"
+    ROAD = 0
+    BIKE = 1
+    WALK = 2
 
-    BUS = "bus"
-    TROLLEYBUS = "trolleybus"
-    FERRY = "ferry"
-    TRAIN = "train"
-    TRAM = "tram"
+    BUS = 3
+    TROLLEYBUS = 4
+    FERRY = 5
+    TRAIN = 6
+    TRAM = 7
 
 
-class MobilityType(Enum):
+class MobilityType(tuple, Enum):
     """
     Type of human mobility.
     """
@@ -36,7 +36,7 @@ class MobilityType(Enum):
     WALK = (EdgeType.WALK, )
 
 
-class LocationType(str, Enum):
+class LocationType(Enum):
     # Compiled from amenity, leisure and building type values in
     # OpenStreetMap. Please refer to:
     #   https://wiki.openstreetmap.org/wiki/Key:amenity
@@ -46,49 +46,49 @@ class LocationType(str, Enum):
 
     # Sustenance section: reduced down to two types depending on
     # whether you want to eat or to drink.
-    BAR = "bar"
-    RESTAURANT = "restaurant"
+    BAR = 0
+    RESTAURANT = 1
 
     # Education section: reduced down to three types based on the age
     # bracket of the student. Colleges are treated as schools.
-    KINDERGARDEN = "kindergarden"
-    SCHOOL = "school"
-    UNIVERSITY = "university"
+    KINDERGARDEN = 2
+    SCHOOL = 3
+    UNIVERSITY = 4
 
     # Transportation section: only interested in stations and parking
     # lots.
-    PUBLIC_TRANPORT_STATION = "public_transport_station"
-    PARKING = "parking"
+    PUBLIC_TRANPORT_STATION = 5
+    PARKING = 6
 
     # Financial section: ignored. Banks will be classified as offices.
 
     # Healthcare: hospitals, doctors and pharmacies. The first two is
     # where the sick people might go (and stay in case of hospital).
-    HOSPITAL = "hospital"
-    DOCTOR = "doctor"
-    PHARMACY = "pharmacy"
+    HOSPITAL = 7
+    DOCTOR = 8
+    PHARMACY = 9
 
     # Entertainment, Arts & Culture: reducing to gambling, theater
     # (including cinema) and social centre (including community
     # center). Sorry to all the stripclubs, brothels and swinger clubs
     # out there.
-    GAMBLING = "gambling"
-    NIGHTCLUB = "nightclub"
-    THEATER = "theater"
-    SOCIAL_CENTRE = "social_centre"  # spelling from OSM
+    GAMBLING = 10
+    NIGHTCLUB = 11
+    THEATER = 12
+    SOCIAL_CENTRE = 13  # spelling from OSM
 
     # Leisure:
-    BEACH = "beach"
-    SPORTS_CENTRE = "sports_centre"
-    PARK = "park"
-    STADIUM = "stadium"
+    BEACH = 14
+    SPORTS_CENTRE = 15
+    PARK = 16
+    STADIUM = 17
 
     # Building: everything livable is (including a cabin and a static
     # caravan) is a household, everything religious is a church.
-    HOUSEHOLD = "household"
+    HOUSEHOLD = 18
 
-    OFFICE = "office"
-    RETAIL = "retail"  # for non-essentials
-    SUPERMARKET = "supermarket"
+    OFFICE = 19
+    RETAIL = 20  # for non-essentials
+    SUPERMARKET = 21
 
-    CHURCH = "church"
+    CHURCH = 22
