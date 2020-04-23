@@ -21,25 +21,9 @@ class GeoCoordinates:
         self.longitude = longitude
         self.latitude = latitude
 
-        # References to the Location(s) at these coordinates
-        # This mapping should probably end up in the City
-        self._locations = ()
-
     def __hash__(self):
         # An instance is defined by its coordinates only
         return tuple([self.longitude, self.latitude]).__hash__()
-
-    @property
-    def locations(self):
-        """Locations."""
-        return self._locations
-
-    def add_location(self, location):
-        """Add a location.
-
-        :param Location location: Location
-        """
-        self._locations += (location,)
 
     @classmethod
     def distance(cls, c1, c2):

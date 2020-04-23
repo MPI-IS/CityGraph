@@ -19,7 +19,6 @@ class TestGeoCoordinates(TestCase):
 
         self.assertEqual(self.c.longitude, self.x)
         self.assertEqual(self.c.latitude, self.y)
-        self.assertFalse(self.c.locations)
 
     def test_hash(self):
         """Checks the hash method."""
@@ -31,20 +30,6 @@ class TestGeoCoordinates(TestCase):
         # Invert coordinates - different hash
         c2 = GeoCoordinates(self.y, self.x)
         self.assertNotEqual(hash(self.c), hash(c2))
-
-        # List of locations does not influence the hash
-        c1.add_location(self.rng())
-        self.assertNotEqual(self.c.locations, c1.locations)
-        self.assertEqual(hash(self.c), hash(c1))
-
-    def test_add_location(self):
-        """Checks the method to add a location."""
-
-        locations = [self.rng.randint(1000) for _ in range(self.rng.randint(100))]
-        for location in locations:
-            self.c.add_location(location)
-
-        self.assertSetEqual(set(self.c.locations), set(locations))
 
     def test_compute_distance(self):
         """Checks the method calculating the distance between two coordinates."""
