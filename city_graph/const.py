@@ -1,6 +1,7 @@
-from enum import Enum
+from enum import Enum, unique
 
 
+@unique
 class EdgeType(Enum):
     """
     Type of Topology edge.
@@ -17,6 +18,7 @@ class EdgeType(Enum):
     TRAM = 7
 
 
+@unique
 class MobilityType(tuple, Enum):
     """
     Type of human mobility.
