@@ -1,10 +1,9 @@
 from enum import Enum
 import shapely
 
-class EdgeType(str, Enum):
-    """
-    Type of Topology edge.
-    """
+
+class TransportType(str, Enum):
+    """Type of transport."""
 
     ROAD = "road"
     BIKE = "bike"
@@ -18,31 +17,32 @@ class EdgeType(str, Enum):
 
 
 class MobilityType(tuple, Enum):
-    """
-    Type of human mobility.
-    """
+    """Type of human mobility."""
 
     PUBLIC_TRANSPORT = (
-        EdgeType.WALK,
-        EdgeType.BUS,
-        EdgeType.TROLLEYBUS,
-        EdgeType.FERRY,
-        EdgeType.TRAIN,
-        EdgeType.TRAM
+        TransportType.WALK,
+        TransportType.BUS,
+        TransportType.TROLLEYBUS,
+        TransportType.FERRY,
+        TransportType.TRAIN,
+        TransportType.TRAM
     )
 
-    CAR = (EdgeType.ROAD, EdgeType.WALK)
-    BIKE = (EdgeType.BIKE, ) + PUBLIC_TRANSPORT
-    WALK = (EdgeType.WALK, )
+    CAR = (TransportType.ROAD, TransportType.WALK)
+    BIKE = (TransportType.BIKE, ) + PUBLIC_TRANSPORT
+    WALK = (TransportType.WALK, )
 
-    
+
 class LocationType(str, Enum):
-    # Compiled from amenity, leisure and building type values in
-    # OpenStreetMap. Please refer to:
-    #   https://wiki.openstreetmap.org/wiki/Key:amenity
-    #   https://wiki.openstreetmap.org/wiki/Key:leisure
-    #   https://wiki.openstreetmap.org/wiki/Key:building
-    # for the original lists.
+    """
+    Type of location.
+
+    :note: Compiled from amenity, leisure and building type values in
+    OpenStreetMap. For the original lists, please refer to:
+        * https://wiki.openstreetmap.org/wiki/Key:amenity
+        * https://wiki.openstreetmap.org/wiki/Key:leisure
+        * https://wiki.openstreetmap.org/wiki/Key:building
+    """
 
     # Sustenance section: reduced down to two types depending on
     # whether you want to eat or to drink.
@@ -103,11 +103,10 @@ class Preferences:
     to a preference weight (the highest the value, the preferred the transportation mode)
     """
 
-    __slots__ = ("_weights")
+    __slots__ = ("_weights",)
 
-    def __init__(self,
-                 weights={}):
-        self._weights = weights
+    def __init__(self, weights=None):
+        self._weights = weights or {}
         self._normalize_weights()
 
     @property
@@ -139,19 +138,25 @@ class Preferences:
 
 
 class Location:
-
     """
-    A location in the city
+    A location in the city.
 
-    :param :py:class:`.const.LocationType` location_type: the type of location
+    :param str name: the location name
+    :param :py:class:`LocationType` location_type: the type of location
     :param coordinates: where the location is (instance of shapely.geometry.Point)
     :param int location_id: unique id of the location
     """
 
     id_count = 0
 
-    def __init__(self, location_type, coordinates):
-        assert(location_type in self.types)
+    def __init__(self, name, location_type, coordinates):
+
+        if location_type not in LocationType:
+            message = "Unknown location type, use a member of the LocationType enum:\n\t- "
+            message += '\n\t- '.join(t.__str__() for t in LocationType)
+            raise ValueError(message)
+
+        self.name = name
         self._location_type = location_type
         self._coordinates = coordinates
         # generating a unique id
