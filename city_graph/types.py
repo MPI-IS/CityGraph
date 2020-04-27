@@ -175,6 +175,6 @@ class Location:
         return self._location_type
 
     @classmethod
-    def _get_id(self):
-        self.__class__.__id_count += 1
-        return self.__class__.__id_count
+    def _get_id(cls):
+        cls.__id_count += 1
+        return cls.__id_count
