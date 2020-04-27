@@ -1,5 +1,5 @@
 from enum import Enum
-import shapely
+import shapely.geometry
 
 
 class TransportType(str, Enum):
@@ -94,21 +94,45 @@ class LocationType(str, Enum):
     CHURCH = "church"
 
 
+LOCATION_TYPES = set(item.value for item in LocationType)
+
+
+class PathCriterion(Enum):
+    
+    DURATION = "duration"
+    DISTANCE = "distance"
+
+
 class Preferences:
     """
     Encapsulate the user's preferences for path planning,
     e.g.  his/her relative preferrances for the various transporation modes.
 
+    :param criterion: graph edge attribute used as weight (default:duration) 
     :param weights: dictionary of keys of type :py:class:`.MobilityType` related
     to a preference weight (the highest the value, the preferred the transportation mode)
     """
 
-    __slots__ = ("_weights",)
+    __slots__ = ("_weights","_criterion")
 
-    def __init__(self, weights=None):
+    def __init__(self,
+                 criterion=PathCriterion.DURATION,
+                 weights=None):
+
+        if criterion not in PathCriterion:
+            message = str(criterion)+": "
+            message += "Unknown criterion, use a member of the PathCriterion enum:\n\t- "
+            message += '\n\t- '.join(t.__str__() for t in PathCriterion)
+            raise ValueError(message)
+        
         self._weights = weights or {}
         self._normalize_weights()
+        self._criterion = criterion
 
+    @property
+    def criterion(self):
+        return self._criterion
+        
     @property
     def weights(self):
         return self._weights
@@ -138,32 +162,34 @@ class Preferences:
 
 
 class Location:
-    """
-    A location in the city.
 
+    """
     :param int location_id: unique id of the location
     :param location_type: the type of location
     :param coordinates: where the location is (instance of shapely.geometry.Point)
     :param str name: the location name (optional)
     :param node: id of a node in a graph (optional)
-
-    :type location_type: :py:class:`LocationType`
     """
 
-    __id_count = 0
+    _id_count = 0
 
     def __init__(self, location_type, coordinates, name=None, node=None):
 
-        if location_type not in LocationType:
-            message = "Unknown location type, use a member of the LocationType enum:\n\t- "
+        if location_type not in LOCATION_TYPES:
+            message = str(location_type)+": "
+            message += "Unknown location type, use a member of the LocationType enum:\n\t- "
             message += '\n\t- '.join(t.__str__() for t in LocationType)
             raise ValueError(message)
 
         self._location_id = self._get_id()
 
         self._location_type = location_type
-        self._coordinates = coordinates
 
+        if isinstance(coordinates,shapely.geometry.Point):
+            self._coordinates = coordinates
+        else :
+            self._coordinates = shapely.geometry.Point(coordinates)
+            
         self.name = name
         self.node = node
 
@@ -177,9 +203,24 @@ class Location:
         return self._location_id
 
     @property
+    def coordinates(self):
+        return self._coordinates
+
+    @property
+    def location_type(self):
+        return self._location_type
+
+    @classmethod
+    def _get_id(cls):
+        cls._id_count += 1
+        return cls._id_count
+
     def location_type(self):
         return self._location_type
 
     @property
     def coordinates(self):
         return self._coordinates
+
+    def distance(self,other):
+        return self._coordinates.distance(other._coordinates)
