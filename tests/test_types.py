@@ -1,7 +1,5 @@
 import unittest
 import math
-from city_graph import city
-from city_graph import planning
 from city_graph import types
 
 class TypesTestCase(unittest.TestCase):
