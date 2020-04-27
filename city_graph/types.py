@@ -14,10 +14,11 @@ class TransportType(Enum):
     WALK = 2
 
     BUS = 3
-    TROLLEYBUS = 4
-    FERRY = 5
+    FERRY = 4
+    SUBWAY = 5
     TRAIN = 6
     TRAM = 7
+    TROLLEYBUS = 8
 
 
 """
@@ -126,7 +127,7 @@ class LocationType(str, Enum):
     GAMBLING = 10
     NIGHTCLUB = 11
     THEATER = 12
-    SOCIAL_CENTER = 13  # spelling from OSM
+    SOCIAL_CENTER = 13
 
     # Leisure:
     BEACH = 14
@@ -140,7 +141,7 @@ class LocationType(str, Enum):
 
     OFFICE = 19
     RETAIL = 20  # for non-essentials
-    SUPERMARKET = 21
+    GROCERY = 21
 
     CHURCH = 22
 

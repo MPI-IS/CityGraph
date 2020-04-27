@@ -64,7 +64,7 @@ Authors
 License
 -------
 
-BSD-3-Clause (see LICENSE.md)
+BSD-3-Clause (see LICENSE.md). OSM import code contains a modified snippet of code from project `osmnx` that is being distributed under MIT License; for the original license file and copyright attribution see LICENSE_OSMNX.md.
 
 Copyright
 ---------

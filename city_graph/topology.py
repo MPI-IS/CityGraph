@@ -155,6 +155,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         with suppress(KeyError):
             types_existing_edges = [e[self.EDGE_TYPE] == edge_type
                                     for e in self.get_edges(node1, node2).values()]
+
             if any(types_existing_edges):
                 raise RuntimeError(
                     'Already existing edge %s between nodes %s and %s' % (edge_type, node1, node2)

@@ -6,27 +6,13 @@ from .planning import get_plan
 from .topology import MultiEdgeUndirectedTopology
 from .types import (
     LocationType, Location, Point, TransportType, LocationDistribution)
-from .utils import RandomGenerator, distance
+from .utils import distance, group_locations_by, RandomGenerator
 
 
 DEFAULT_LOCATION_DISTRIBUTION = LocationDistribution(
     household=295, office=150, school=3, university=2,
-    supermarket=25, retail=20, sports_centre=5, park=5,
+    grocery=25, retail=20, sports_centre=5, park=5,
     restaurant=5, bar=5)
-
-
-def group_locations_by(locations, attribute):
-    """
-    Group locations into a dictionary of lists based on an attribute.
-
-    :param list locations: A list of locations.
-    :param str attribute: Attribute name.
-    """
-    grouped = defaultdict(list)
-    for location in locations:
-        value = getattr(location, attribute)
-        grouped[value].append(location)
-    return grouped
 
 
 class LocationManager:
@@ -37,7 +23,9 @@ class LocationManager:
     :param func fdistance: Function used to calculate distances
     """
 
-    __slots__ = ("_distances", "_locations", "_func_distance")
+    __slots__ = (
+        "_distances", "_locations", "_func_distance"
+    )
 
     def __init__(self, locations, fdistance=distance):
 
@@ -160,9 +148,14 @@ class City:
     :param str name: name of the city
     :param rng: Random number generator.
     :type rng: :py:class: `.RandomGenerator`
+    :param int nb_processes: number of processes to use (when computing shortest paths)
+    :param location_cls: A callable used to construct the location.
 
-    :param int nb_processes: number of processes to use (when
-        computing shortest paths)
+    :note: The `location_cls` default constructor must accept as input arguments:
+        * a location type
+        * a 2-tuple of random values between ``x_lim`` and ``y_lim``
+    :note: The location coordinates (longitude and latitude)
+        should be accessible through its attributes ``x`` and ``y``.
     """
 
     __slots__ = (
@@ -171,9 +164,11 @@ class City:
         "_locations_by_node"
     )
 
-    def __init__(self, name, locations, topology, nb_processes=1,
-                 location_cls=Location):
-
+    def __init__(
+        self, name, locations, topology,
+        nb_processes=1,
+        location_cls=Location
+    ):
         self.name = name
 
         # Create the LocationManager
@@ -207,8 +202,11 @@ class City:
         self._pool.join()
 
     @classmethod
-    def build_from_data(cls, name, locations, connections=None, rng=None,
-                        create_network=True, nb_processes=1, **kwargs):
+    def build_from_data(
+        cls, name, locations, connections=None, rng=None,
+        location_cls=Location, create_network=True, nb_processes=1,
+        **kwargs
+    ):
         """
         Creates a city with locations and connections provided as
         input.
@@ -222,6 +220,8 @@ class City:
         :param rng: Random number generator.
         :type rng: :py:class: `.RandomGenerator`
 
+        :param location_cls: A callable used to construct the
+            location.
         :param int create_network: Whether to run create connections
             using the energy algorithm
         :param int nb_processes: number of processes to use (when
@@ -229,8 +229,11 @@ class City:
         :param dict kwargs: Additional kwargs to pass to the energy
             algorithm
 
-        :note: The location coordinates (longitude and latitude)
-            should be accessible through its attributes ``x`` and ``y``.
+        :note: The `location_cls` default constructor must accept
+            as input arguments: * a location type * a 2-tuple of
+            random values between ``x_lim`` and ``y_lim`` :note: The
+            location coordinates (longitude and latitude) should be
+            accessible through its attributes ``x`` and ``y``.
         """
         rng = rng or RandomGenerator()
 
@@ -256,7 +259,9 @@ class City:
         topology = MultiEdgeUndirectedTopology(nodes, edges)
 
         # Default constructor
-        city = cls(name, locations, topology, nb_processes=nb_processes)
+        city = cls(
+            name, locations, topology,
+            nb_processes=nb_processes, location_cls=location_cls)
 
         # Call energy algorithm if necessary
         if create_network:
@@ -265,9 +270,9 @@ class City:
 
     @classmethod
     def build_random(
-        cls, name, distribution,
-        x_lim=(0, 360), y_lim=(-90, 90),
-        rng=None, location_cls=Location, create_network=True, **kwargs
+        cls, name, distribution, x_lim=(0, 360), y_lim=(-90, 90),
+        rng=None, location_cls=Location, create_network=True,
+        **kwargs
     ):
         """
         Creates a city with random locations and connections.
@@ -309,8 +314,10 @@ class City:
         )
 
         # Call builder
-        return cls.build_from_data(name, locations, rng=rng,
-                                   create_network=create_network, **kwargs)
+        return cls.build_from_data(
+            name, locations, rng=rng,
+            location_cls=location_cls,
+            create_network=create_network, **kwargs)
 
     def create_connections_by_energy(
             self, connection_types=(TransportType.ROAD, TransportType.WALK),
