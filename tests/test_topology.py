@@ -15,6 +15,10 @@ class TestBaseTopology(TestCase):
     def test_add_methods_required(self):
         """Checks the required method must be implemented."""
 
+        # Variables representing nodes
+        n1 = random_string()
+        n2 = random_string()
+
         # Methods not implemented in derived class
         class BadTopology(BaseTopology):
             pass
@@ -24,6 +28,8 @@ class TestBaseTopology(TestCase):
             BadTopology().add_node()
         with self.assertRaises(NotImplementedError):
             BadTopology().add_edge()
+        with self.assertRaises(NotImplementedError):
+            BadTopology().get_shortest_path(n1, n2)
 
         # Methods implemented in derived class
         class GoodTopology(BaseTopology):
@@ -34,9 +40,13 @@ class TestBaseTopology(TestCase):
             def add_edge(self, *args, **kwargs):
                 pass
 
+            def get_shortest_path(self, node1, node2, *args, **kwargs):
+                pass
+
         # All good
         GoodTopology().add_node()
         GoodTopology().add_edge()
+        GoodTopology().add_edge(n1, n2)
 
 
 class TestMultiEdgeUndirectedTopology(RandomTestCase):
@@ -55,20 +65,24 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
     def test_add_node(self):
         """Checks the method adding a node to the graph."""
 
-        # Add first node
+        # Add first node without attribute
         c = GeoCoordinates(self.rng(), self.rng())
         self.top.add_node(c)
 
         self.assertEqual(self.top.num_of_nodes, 1)
-        # No attribute stored in the node
         self.assertFalse(self.top.graph.nodes[c])
 
-        # Try to add identical node
+        # Try to add identical node: does not work
         self.top.add_node(c)
-
         self.assertEqual(self.top.num_of_nodes, 1)
-        # Still no attribute
         self.assertFalse(self.top.graph.nodes[c])
+
+        # Add another node with attributes
+        c2 = GeoCoordinates(self.rng(), self.rng())
+        attrs = {random_string(): self.rng() for _ in range(1 + self.rng.randint(20))}
+        self.top.add_node(c2, **attrs)
+        self.assertEqual(self.top.num_of_nodes, 2)
+        self.assertDictEqual(self.top.graph.nodes[c2], attrs)
 
     def test_add_edge(self):
         """Checks the methods adding an edge to the graph."""
@@ -450,12 +464,63 @@ class TestGetShortestPath(RandomTestCase):
             self.top.get_shortest_path(
                 self.node_start, self.node_end, self.weight_name, [edge_type], [EDGE_TYPE + '2'])
 
-        # OK
-        for k in range(len(attrs)):
-            sample = random.sample(list(attrs), k)
+        # OK, take samples of different sizes
+        for k in range(len(extra_attrs)):
+            sample = random.sample(list(extra_attrs), k)
             _, _, data = self.top.get_shortest_path(
                 self.node_start, self.node_end, self.weight_name, [edge_type], sample)
-            self.assertEqual(len(data), len(sample) + 1)
+            self.assertEqual(len(data), len(sample) + 1)  # +1 for the type
+            for attr in sample:
+                self.assertAlmostEqual(data[attr], extra_attrs[attr])
 
-        pass
-        pass
+    def test_paths_with_weighted_edges(self):
+        """Checks that we can apply weights to edges when calculating the score."""
+
+        self.top.add_node(self.node_start)
+        self.top.add_node(self.node_end)
+        edge_types = [random_string() for _ in range(1 + self.rng.randint(10))]
+
+        # Create some nodes and build paths
+        nodes_to_the_right = self.create_some_nodes(self.rng.randint(20))
+        nodes_to_the_right.append(self.node_end)
+        expected_path = [self.node_start] + nodes_to_the_right
+        expected_types = []
+        expected_weights = []
+        node_in = self.node_start
+        while nodes_to_the_right:
+            node_out = nodes_to_the_right.pop(0)
+            tmp_type = random.choice(edge_types)
+            tmp_weight = self.rng()
+            expected_types.append(tmp_type)
+            expected_weights.append(tmp_weight)
+            self.top.add_edge(node_in, node_out, tmp_type, **{self.weight_name: tmp_weight})
+            node_in = node_out
+
+        # Without weights: the score is actually the edge weights
+        score, path, data = self.top.get_shortest_path(
+            self.node_start, self.node_end, self.weight_name, edge_types)
+        self.assertListEqual(list(data[EDGE_TYPE]), expected_types)
+        self.assertAlmostEqual(score, sum(expected_weights))
+        self.assertListEqual(path, expected_path)
+
+        # With weights
+        d_edge_types = {k: self.rng() for k in edge_types}
+        score, path, data = self.top.get_shortest_path(
+            self.node_start, self.node_end, self.weight_name, d_edge_types)
+        expected_score = sum(w * d_edge_types[t]
+                             for w, t in zip(expected_weights, expected_types))
+        self.assertAlmostEqual(score, expected_score)
+
+        # Using weights can change the path
+        # Add edge
+        new_type = random_string()
+        new_edge_weight = self.rng()
+        new_expected_score = expected_score / 2
+        d_edge_types[new_type] = new_expected_score / new_edge_weight
+        self.top.add_edge(self.node_start, self.node_end, new_type,
+                          **{self.weight_name: new_edge_weight})
+        score, path, data = self.top.get_shortest_path(
+            self.node_start, self.node_end, self.weight_name, d_edge_types)
+        self.assertListEqual(list(data[EDGE_TYPE]), [new_type])
+        self.assertAlmostEqual(score, new_expected_score)
+        self.assertListEqual(path, [self.node_start, self.node_end])

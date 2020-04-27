@@ -4,6 +4,8 @@ Topology
 
 Module for building and operating on graphs.
 """
+import random
+
 from functools import partial
 from networkx import MultiGraph, single_source_dijkstra
 from networkx.exception import NetworkXNoPath
@@ -29,6 +31,10 @@ class BaseTopology:
         """Method adding an edge to the multigraph."""
         raise NotImplementedError
 
+    def get_shortest_path(self, node1, node2, *args, **kwargs):
+        """Method finding the shortest path between two nodes."""
+        raise NotImplementedError
+
 
 class MultiEdgeUndirectedTopology(BaseTopology):
     """Class representing a topology with mutltiple undirected.
@@ -51,12 +57,13 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         """The number of nodes in the topology."""
         return self.graph.number_of_edges()
 
-    def add_node(self, node_label):
+    def add_node(self, node_label, **node_attrs):
         """Add a node defined by its label.
 
         :param obj node_label: Node label. Must be hashable.
+        :param dict node_attrs: Node attributes.
         """
-        self.graph.add_node(node_label)
+        self.graph.add_node(node_label, **node_attrs)
 
     def add_edge(self, node1, node2, edge_type, **edge_attrs):
         """Add an edge between two nodes in the graph.
@@ -102,7 +109,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
         :param str weight: Weight name
         :param allowed_types: Edge type(s) allowed to build path
-        :type allowed_types: str or itertable
+        :type allowed_types: dict-like object with strings as keys
         :param dict best_types: dictionnary containing the best type for each pair of nodes
 
         :note: other arguments are the ones needed by the NetworkX API.
@@ -129,9 +136,13 @@ class MultiEdgeUndirectedTopology(BaseTopology):
                     weight, node1, node2
                 ))
 
-        # Case where there is no valid node
+        # If there is no valid edge
         if not weights:
             return None
+
+        # If the weights need to be weighted. Skip if they are all None.
+        if list(set(allowed_types.values()))[0]:
+            weights = [(t, w * allowed_types[t]) for t, w in weights]
 
         # Otherwise, save type and return minimum weight
         min_type, min_weight = min(weights, key=lambda t: t[1])
@@ -144,16 +155,21 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :param obj node1: Label of the first node.
         :param obj node2: Label of the second node.
         :param str weight: Weight used to find shortest path
-        :param iterable allowed_types: Edge type(s) allowed to build path
-        :param itertable edge_data: Edge attributes for which data along the path is requested
+        :param allowed_types: Edge type(s) allowed to build path
+        :type allowed_types: iter(str) or dict-like object with strings as keys
+        :param iter(str) edge_data: Edge attributes for which data along the path is requested
         :returns: A 3-tuple containing in this order
 
             * the score of the optimal path
             * the list of nodes along the path
-            * a dict containing the values along the path for each attribute in edge_data
+            * a dict containing the edge type and values for the attributes specified in edge_data.
+              Data are stored in Nump arrays.
 
         :rtype: tuple
         :raises: :py:class:`ValueError`: if nodes dont exists or no path has been found between them
+
+        :note: If `allowed_types` is a dict-like object, the weight of an edge will be weighted
+        by the value of the given edge type.
         """
 
         # Check that the nodes exist
@@ -161,8 +177,12 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             if not self.graph.has_node(node):
                 raise ValueError("Node %s does not exist." % node)
 
-        # Transform allowed_types into set (hashable and unique elements)
-        allowed_types = set(allowed_types)
+        # If allowed_types is not a dict-like object,
+        # transform the variable into one with None values.
+        try:
+            _ = allowed_types[random.choice([_ for _ in allowed_types])]
+        except TypeError:
+            allowed_types = {k: None for k in set(allowed_types)}
 
         # Using partial function to pass the edge types
         # The weight_func will be called for each edge on the graph
@@ -178,7 +198,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             score, path = single_source_dijkstra(
                 self.graph, node1, node2, weight=weight_func)
         except NetworkXNoPath:
-            raise ValueError("No path found between %s and %s." % (node1, node2))
+            raise ValueError("No path found with type %s between %s and %s." %
+                             (allowed_types, node1, node2))
 
         # Build the dict containing the attributes data
         # Because we do not want to assume anything about the data,
