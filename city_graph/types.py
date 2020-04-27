@@ -141,40 +141,45 @@ class Location:
     """
     A location in the city.
 
-    :param :py:class:`LocationType` location_type: the type of location
+    :param int location_id: unique id of the location
+    :param location_type: the type of location
     :param coordinates: where the location is (instance of shapely.geometry.Point)
     :param str name: the location name (optional)
-    :param int location_id: unique id of the location
+    :param node: id of a node in a graph (optional)
+
+    :type location_type: :py:class:`LocationType`
     """
 
     __id_count = 0
 
-    def __init__(self, location_type, coordinates, name=None):
+    def __init__(self, location_type, coordinates, name=None, node=None):
 
         if location_type not in LocationType:
             message = "Unknown location type, use a member of the LocationType enum:\n\t- "
             message += '\n\t- '.join(t.__str__() for t in LocationType)
             raise ValueError(message)
 
-        self.name = name
+        self._location_id = self._get_id()
+
         self._location_type = location_type
         self._coordinates = coordinates
-        # generating a unique id
-        self._location_id = self._get_id()
+
+        self.name = name
+        self.node = node
+
+    @classmethod
+    def _get_id(cls):
+        cls.__id_count += 1
+        return cls.__id_count
 
     @property
     def location_id(self):
         return self._location_id
 
     @property
-    def coordinates(self):
-        return self._coordinates
-
-    @property
     def location_type(self):
         return self._location_type
 
-    @classmethod
-    def _get_id(cls):
-        cls.__id_count += 1
-        return cls.__id_count
+    @property
+    def coordinates(self):
+        return self._coordinates
