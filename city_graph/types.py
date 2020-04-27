@@ -141,15 +141,15 @@ class Location:
     """
     A location in the city.
 
-    :param str name: the location name
     :param :py:class:`LocationType` location_type: the type of location
     :param coordinates: where the location is (instance of shapely.geometry.Point)
+    :param str name: the location name (optional)
     :param int location_id: unique id of the location
     """
 
-    id_count = 0
+    __id_count = 0
 
-    def __init__(self, name, location_type, coordinates):
+    def __init__(self, location_type, coordinates, name=None):
 
         if location_type not in LocationType:
             message = "Unknown location type, use a member of the LocationType enum:\n\t- "
@@ -176,5 +176,5 @@ class Location:
 
     @classmethod
     def _get_id(self):
-        self.__class__.id_count += 1
-        return self.__class__.id_count
+        self.__class__.__id_count += 1
+        return self.__class__.__id_count
