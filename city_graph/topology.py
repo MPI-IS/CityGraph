@@ -20,9 +20,6 @@ EDGE_TYPE = 'type'
 class BaseTopology:
     """Abstract class setting up some requirements for a Topology."""
 
-    def __init__(self):
-        self.graph = MultiGraph()
-
     def add_node(self, *args, **kwargs):
         """Method adding a node to the multigraph."""
         raise NotImplementedError
@@ -37,14 +34,15 @@ class BaseTopology:
 
 
 class MultiEdgeUndirectedTopology(BaseTopology):
-    """Class representing a topology with mutltiple undirected.
+    """Class representing a topology with mutltiple undirected edges.
 
-    :param obj rng: Random number generator.
+    :param rng: Random number generator.
+    :type rng: :py:class:`.RandomGenerator`
     """
 
     def __init__(self, rng=None):
 
-        super().__init__()
+        self.graph = MultiGraph()
         self.rng = rng or RandomGenerator()
 
     @property
@@ -162,14 +160,15 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
             * the score of the optimal path
             * the list of nodes along the path
-            * a dict containing the edge type and values for the attributes specified in edge_data.
-              Data are stored in Nump arrays.
+            * a dict containing the edge type and values for the attributes specified in edge_data
+              (data are stored in numpy arrays)
 
         :rtype: tuple
-        :raises: :py:class:`ValueError`: if nodes dont exists or no path has been found between them.
+        :raises:
+            :py:class:`.ValueError`: if nodes dont exists or no path has been found between them.
 
         :note: If `allowed_types` is a dict-like object, the weight of an edge will be weighted
-        by the value of the given edge type.
+            by the value of the given edge type.
         """
 
         # Check that the nodes exist
