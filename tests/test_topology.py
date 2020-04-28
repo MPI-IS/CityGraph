@@ -522,3 +522,42 @@ class TestGetShortestPath(RandomTestCase):
         self.assertListEqual(list(data[EDGE_TYPE]), [new_type])
         self.assertAlmostEqual(score, new_expected_score)
         self.assertListEqual(path, [self.node_start, self.node_end])
+
+
+    def test_path_using_types(self):
+
+        from city_graph.types import TransportType
+        from city_graph.types import PathCriterion
+        
+        t = MultiEdgeUndirectedTopology()
+        l1 = "l1"
+        l2 = "l2"
+        
+        t.add_node(l1)
+        t.add_node(l2)
+        
+        mode = TransportType.ROAD
+        distance = 1000
+        duration = 60
+        
+        t.add_edge(l1,l2,
+                   mode,
+                   distance=distance,
+                   duration=duration)
+
+        criterion=PathCriterion.DURATION
+        mobility=(TransportType.ROAD,TransportType.WALK)
+        extra_data =("duration","distance")
+
+        
+        try :
+            score,path,data = t.get_shortest_path(l1,l2,
+                                                  criterion,
+                                                  mobility,
+                                                  edge_data=extra_data)
+        except ValueError as e :
+            self.fail("shortest path failed: "+str(e))
+        
+
+        # note : this test passes if using str rather than enum attributes
+        #        for mode, criterion and mobility
