@@ -87,11 +87,11 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
         :param obj node1: Label of the first node.
         :param obj node2: Label of the second node.
-        :param iterable edge_types: If provided, return only the edges for these types
+        :param iterable edge_types: If provided, return only the edges for these types.
         :returns: A dictionary where the keys are the edge number
-            and the values a dictionary of the edges attributes
+            and the values a dictionary of the edges attributes.
         :rtype: dict
-        :raises: :py:class:`ValueError`: if there is no edge between the nodes
+        :raises: :py:class:`ValueError`: if there is no edge between the nodes.
         """
         try:
             edges = dict(self.graph[node1][node2])
@@ -107,10 +107,10 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         """
         Find the edge with the minimum weight between two nodes.
 
-        :param str weight: Weight name
-        :param allowed_types: Edge type(s) allowed to build path
-        :type allowed_types: dict-like object with strings as keys
-        :param dict best_types: dictionnary containing the best type for each pair of nodes
+        :param str weight: Weight name.
+        :param allowed_types: Edge type(s) allowed to build path.
+        :type allowed_types: dict-like object with strings as keys.
+        :param dict best_types: dictionnary containing the best type for each pair of nodes.
 
         :note: other arguments are the ones needed by the NetworkX API.
         """
@@ -149,15 +149,15 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         best_types[(node1, node2)] = min_type
         return min_weight
 
-    def get_shortest_path(self, node1, node2, weight, allowed_types, edge_data=None):
+    def get_shortest_path(self, node1, node2, criterion, allowed_types, edge_data=None):
         """Find the shortest path between two nodes using specified edges.
 
         :param obj node1: Label of the first node.
         :param obj node2: Label of the second node.
-        :param str weight: Weight used to find shortest path
-        :param allowed_types: Edge type(s) allowed to build path
-        :type allowed_types: iter(str) or dict-like object with strings as keys
-        :param iter(str) edge_data: Edge attributes for which data along the path is requested
+        :param str criterion: Criterion used to find shortest path. Must be an edge attribute.
+        :param allowed_types: Edge type(s) allowed to build path.
+        :type allowed_types: iter(str) or dict-like object with strings as keys.
+        :param iter(str) edge_data: Edge attributes for which data along the path is requested.
         :returns: A 3-tuple containing in this order
 
             * the score of the optimal path
@@ -166,7 +166,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
               Data are stored in Nump arrays.
 
         :rtype: tuple
-        :raises: :py:class:`ValueError`: if nodes dont exists or no path has been found between them
+        :raises: :py:class:`ValueError`: if nodes dont exists or no path has been found between them.
 
         :note: If `allowed_types` is a dict-like object, the weight of an edge will be weighted
         by the value of the given edge type.
@@ -180,7 +180,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # If allowed_types is not a dict-like object,
         # transform the variable into one with None values.
         try:
-            _ = allowed_types[random.choice([_ for _ in allowed_types])]
+            _ = allowed_types[random.choice(list(allowed_types))]
         except TypeError:
             allowed_types = {k: None for k in set(allowed_types)}
 
@@ -191,7 +191,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # Instead it will be a dict where the key is a pair of nodes
         # We will extract the relevant values and attributes afterwards
         best_types = {}
-        weight_func = partial(self._get_min_weight, weight, allowed_types, best_types)
+        weight_func = partial(self._get_min_weight, criterion, allowed_types, best_types)
 
         # Calculate path
         try:
