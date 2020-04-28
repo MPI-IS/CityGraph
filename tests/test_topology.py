@@ -1,12 +1,11 @@
 from unittest import TestCase
-import random
 
 from city_graph.coordinates import GeoCoordinates
 from city_graph.topology import \
     BaseTopology, MultiEdgeUndirectedTopology, \
     EDGE_TYPE
 
-from .fixtures import random_string, RandomTestCase
+from .fixtures import RandomTestCase
 
 
 class TestBaseTopology(TestCase):
@@ -16,8 +15,7 @@ class TestBaseTopology(TestCase):
         """Checks the required method must be implemented."""
 
         # Variables representing nodes
-        n1 = random_string()
-        n2 = random_string()
+        n1, n2 = ('a', 'b')
 
         # Methods not implemented in derived class
         class BadTopology(BaseTopology):
@@ -79,7 +77,7 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
 
         # Add another node with attributes
         c2 = GeoCoordinates(self.rng(), self.rng())
-        attrs = {random_string(): self.rng() for _ in range(1 + self.rng.randint(20))}
+        attrs = {self.rng.randstr(): self.rng() for _ in range(1 + self.rng.randint(20))}
         self.top.add_node(c2, **attrs)
         self.assertEqual(self.top.num_of_nodes, 2)
         self.assertDictEqual(self.top.graph.nodes[c2], attrs)
@@ -88,8 +86,8 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
         """Checks the methods adding an edge to the graph."""
 
         # Edge types + additional attributes
-        edge_type = random_string()
-        edge_attrs = {random_string(): self.rng() for _ in range(self.rng.randint(10))}
+        edge_type = self.rng.randstr()
+        edge_attrs = {self.rng.randstr(): self.rng() for _ in range(self.rng.randint(10))}
 
         # Expected attributes
         expected_attrs = edge_attrs
@@ -132,8 +130,8 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
         nodes = [GeoCoordinates(self.rng(), self.rng()) for _ in range(1 + self.rng.randint(20))]
         for node in nodes:
             self.top.add_node(node)
-        node_start = random.choice(nodes)
-        node_end = random.choice(nodes)
+        node_start = self.rng.choice(nodes)
+        node_end = self.rng.choice(nodes)
 
         # There is no edge yet: exception
         with self.assertRaises(ValueError):
@@ -141,8 +139,8 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
 
         # Build some edges
         num_edges = 1 + self.rng.randint(10)
-        edge_types = [random_string() for _ in range(num_edges)]
-        weight_name = random_string()
+        edge_types = [self.rng.randstr() for _ in range(num_edges)]
+        weight_name = self.rng.randstr()
         weights = [{weight_name: self.rng()} for _ in range(num_edges)]
         for t, w in zip(edge_types, weights):
             self.top.add_edge(node_start, node_end, t, **w)
@@ -151,13 +149,13 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
         num_noise_edges = self.rng.randint(10)
         exclude = (node_start, node_end)
         for _ in range(num_noise_edges):
-            n1 = random.choice(nodes)
-            n2 = random.choice(nodes)
+            n1 = self.rng.choice(nodes)
+            n2 = self.rng.choice(nodes)
             while exclude in ((n1, n2), (n2, n1)):
-                n1 = random.choice(nodes)
-                n2 = random.choice(nodes)
+                n1 = self.rng.choice(nodes)
+                n2 = self.rng.choice(nodes)
             random_weight = {weight_name: self.rng()}
-            self.top.add_edge(n1, n2, random_string(), **random_weight)
+            self.top.add_edge(n1, n2, self.rng.randstr(), **random_weight)
 
         self.assertEqual(self.top.num_of_edges, num_edges + num_noise_edges)
 
@@ -180,11 +178,11 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
 
         # Build some edges
         num_edges = self.rng.randint(20)
-        attr_name = random_string()
+        attr_name = self.rng.randstr()
         # Dict recording the type and the attribute
         mapping_type_attr = {}
         for _ in range(num_edges):
-            tmp_type = random_string()
+            tmp_type = self.rng.randstr()
             tmp_attr = self.rng()
             mapping_type_attr[tmp_type] = tmp_attr
             # Add edge
@@ -192,7 +190,7 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
 
         # Extract samples and check data
         for k in range(1, num_edges):
-            sample = random.sample(list(mapping_type_attr), k)
+            sample = self.rng.sample(list(mapping_type_attr), k)
             edges = self.top.get_edges(c1, c2, sample)
             self.assertEqual(len(edges), k)
             for e in edges:
@@ -210,7 +208,7 @@ class TestGetShortestPath(RandomTestCase):
         self.top = MultiEdgeUndirectedTopology(rng=self.rng)
         self.node_start = GeoCoordinates(self.rng(), self.rng())
         self.node_end = GeoCoordinates(self.rng(), self.rng())
-        self.weight_name = random_string()
+        self.weight_name = self.rng.randstr()
 
     def create_some_nodes(self, num_nodes=10):
         """Function creating (num_modes + 1) nodes."""
@@ -232,11 +230,11 @@ class TestGetShortestPath(RandomTestCase):
 
         with self.assertRaises(ValueError):
             self.top.get_shortest_path(self.node_start, self.node_end,
-                                       random_string(), random_string())
+                                       self.rng.randstr(), self.rng.randstr())
         self.top.add_node(self.node_start)
         with self.assertRaises(ValueError):
             self.top.get_shortest_path(self.node_start, self.node_end,
-                                       random_string(), random_string())
+                                       self.rng.randstr(), self.rng.randstr())
 
     def test_same_start_and_end(self):
         """Checks the behavior when we arrive when we start."""
@@ -245,7 +243,7 @@ class TestGetShortestPath(RandomTestCase):
         self.top.add_node(self.node_start)
         self.assertFalse(self.top.num_of_edges)
         score, path, data = self.top.get_shortest_path(
-            self.node_start, self.node_start, random_string(), random_string())
+            self.node_start, self.node_start, self.rng.randstr(), self.rng.randstr())
         self.assertListEqual(path, [self.node_start])
         self.assertFalse(score)
         self.assertFalse(data[EDGE_TYPE])
@@ -258,7 +256,7 @@ class TestGetShortestPath(RandomTestCase):
         self.top.add_node(self.node_end)
         with self.assertRaises(ValueError):
             self.top.get_shortest_path(self.node_start, self.node_end,
-                                       random_string(), random_string())
+                                       self.rng.randstr(), self.rng.randstr())
 
     def test_one_edged_paths(self):
         """Checks the behavior when paths have only one edge."""
@@ -267,7 +265,7 @@ class TestGetShortestPath(RandomTestCase):
         self.top.add_node(self.node_end)
 
         # Direct edge
-        edge_type = random_string()
+        edge_type = self.rng.randstr()
         edge_weight = {self.weight_name: self.rng()}
         self.top.add_edge(self.node_start, self.node_end, edge_type, **edge_weight)
 
@@ -292,7 +290,7 @@ class TestGetShortestPath(RandomTestCase):
         type_weights = [(edge_type, edge_weight)]
         for _ in range(self.rng.randint(10)):
             tmp_weight = {self.weight_name: self.rng()}
-            tmp_type = random_string()
+            tmp_type = self.rng.randstr()
             self.top.add_edge(self.node_start, self.node_end, tmp_type, **tmp_weight)
             # Save weight and type
             type_weights.append((tmp_type, tmp_weight))
@@ -315,7 +313,7 @@ class TestGetShortestPath(RandomTestCase):
         self.top.add_node(self.node_start)
         self.top.add_node(self.node_end)
 
-        edge_type = random_string()
+        edge_type = self.rng.randstr()
 
         # Create some nodes and build first path going through them
         nodes_to_the_right = self.create_some_nodes(self.rng.randint(20))
@@ -392,7 +390,7 @@ class TestGetShortestPath(RandomTestCase):
 
         self.top.add_node(self.node_start)
         self.top.add_node(self.node_end)
-        allowed_edge_types = [random_string(), random_string()]
+        allowed_edge_types = [self.rng.randstr(), self.rng.randstr()]
 
         # Simple case: just two edges
         middle_node = self.create_some_nodes(0)[0]
@@ -433,7 +431,7 @@ class TestGetShortestPath(RandomTestCase):
         node_in = self.node_start
         while nodes_to_the_right:
             node_out = nodes_to_the_right.pop(0)
-            tmp_type = random.choice(allowed_edge_types)
+            tmp_type = self.rng.choice(allowed_edge_types)
             expected_types.append(tmp_type)
             self.top.add_edge(node_in, node_out, tmp_type,
                               **{self.weight_name: expected_score / num_edges})
@@ -451,12 +449,12 @@ class TestGetShortestPath(RandomTestCase):
 
         self.top.add_node(self.node_start)
         self.top.add_node(self.node_end)
-        edge_type = random_string()
+        edge_type = self.rng.randstr()
 
         # One edge betwen the two nodes
         # Requested non existing attribute: error
         attrs = {self.weight_name: self.rng()}
-        extra_attrs = {random_string(): self.rng() for _ in range(self.rng.randint(10))}
+        extra_attrs = {self.rng.randstr(): self.rng() for _ in range(self.rng.randint(10))}
         attrs = {self.weight_name: self.rng(), **extra_attrs}
         self.top.add_edge(self.node_start, self.node_end, edge_type, **attrs)
 
@@ -466,7 +464,7 @@ class TestGetShortestPath(RandomTestCase):
 
         # OK, take samples of different sizes
         for k in range(len(extra_attrs)):
-            sample = random.sample(list(extra_attrs), k)
+            sample = self.rng.sample(list(extra_attrs), k)
             _, _, data = self.top.get_shortest_path(
                 self.node_start, self.node_end, self.weight_name, [edge_type], sample)
             self.assertEqual(len(data), len(sample) + 1)  # +1 for the type
@@ -478,7 +476,7 @@ class TestGetShortestPath(RandomTestCase):
 
         self.top.add_node(self.node_start)
         self.top.add_node(self.node_end)
-        edge_types = [random_string() for _ in range(1 + self.rng.randint(10))]
+        edge_types = [self.rng.randstr() for _ in range(1 + self.rng.randint(10))]
 
         # Create some nodes and build paths
         nodes_to_the_right = self.create_some_nodes(self.rng.randint(20))
@@ -489,7 +487,7 @@ class TestGetShortestPath(RandomTestCase):
         node_in = self.node_start
         while nodes_to_the_right:
             node_out = nodes_to_the_right.pop(0)
-            tmp_type = random.choice(edge_types)
+            tmp_type = self.rng.choice(edge_types)
             tmp_weight = self.rng()
             expected_types.append(tmp_type)
             expected_weights.append(tmp_weight)
@@ -513,7 +511,7 @@ class TestGetShortestPath(RandomTestCase):
 
         # Using weights can change the path
         # Add edge
-        new_type = random_string()
+        new_type = self.rng.randstr()
         new_edge_weight = self.rng()
         new_expected_score = expected_score / 2
         d_edge_types[new_type] = new_expected_score / new_edge_weight

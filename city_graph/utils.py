@@ -4,12 +4,15 @@ Utils
 
 Module with different utilities needed for the package.
 """
+import string
 import time
+
 from numpy.random import RandomState
 
 
 def get_current_time_in_ms():
-    """Returns the current time in milliseconds.
+    """
+    Returns the current time in milliseconds.
 
     :note: Used for seeding the pseudo random number generator.
     """
@@ -17,7 +20,9 @@ def get_current_time_in_ms():
 
 
 class RandomGenerator:
-    """Pseudo-random number generator based on the MT19937.
+    """
+    Pseudo-random number generator based on the MT19937.
+    Used for the tests and generating random data.
 
     :param float seed: Seed for the PRNG (default: current time)
     """
@@ -42,10 +47,54 @@ class RandomGenerator:
         return self._rng.random_sample()
 
     def randint(self, max_value):
-        """Returns a random integer in [0, max_value).
+        """
+        Returns a random integer in [0, max_value).
 
         :param int max_value: Maximum value.
         """
         if max_value < 1:
             raise ValueError("Maximum value should be at least 1, instead got %s" % max_value)
         return int(self.__call__() * max_value)
+
+    def randstr(self, length=None):
+        """Returns a random string."""
+
+        length = length or (5 + self.randint(60))
+        characters = string.ascii_letters + string.digits
+        size = len(characters)
+        return ''.join(characters[self.randint(size)] for _ in range(length))
+
+    def choice(self, seq):
+        """
+        Returns a random element from the non-empty sequence.
+
+        :param iterable seq: Sequence
+
+        raises: IndexError if the sequence is empty.
+        """
+        length = len(seq)
+        if not length:
+            raise IndexError("Sequence is empty.")
+        return seq[self.randint(length)]
+
+    def sample(self, seq, k):
+        """
+        Returns a k-lengthed list of unique elements chosen from the population sequence.
+        Used for random sampling without replacement.
+
+        :param iterable seq: Population sequence
+        :param int k: Sample size
+
+        raises: ValueError if the sample size is larger than the population size.
+        """
+        length = len(seq)
+        if k > length:
+            raise ValueError('Sample size larger than population size (%s > %s).'
+                             % (k, length))
+        # Copy sequence
+        data = list(seq)
+        results = []
+        for _ in range(k):
+            results.append(data.pop(self.randint(length)))
+            length -= 1
+        return results
