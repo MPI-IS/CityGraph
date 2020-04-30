@@ -4,8 +4,6 @@ Topology
 
 Module for building and operating on graphs.
 """
-import random
-
 from functools import partial
 from networkx import MultiGraph, single_source_dijkstra
 from networkx.exception import NetworkXNoPath
@@ -179,7 +177,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # If allowed_types is not a dict-like object,
         # transform the variable into one with None values.
         try:
-            _ = allowed_types[random.choice(list(allowed_types))]
+            _ = allowed_types[self.rng.choice(list(allowed_types))]
         except TypeError:
             allowed_types = {k: None for k in set(allowed_types)}
 
