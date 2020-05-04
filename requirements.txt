@@ -3,3 +3,4 @@ networkx
 sphinx
 sphinx-bootstrap-theme
 shapely
+addict
