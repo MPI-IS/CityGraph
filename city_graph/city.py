@@ -1,20 +1,14 @@
 import multiprocessing
-import logging
-import time
-import atexit
-import copy
-import math
-import queue
 from addict import Dict
-from functools import partial
+
 from . import planning
-from . import types
+from .types import LocationType
 
 # helper class that manages distances between locations.
 # will be used as attribute of class City.
 
 
-class _LocationManager:
+class LocationManager:
 
     __slots__ = ("_distances", "_locations", "_type_locations")
 
@@ -22,28 +16,27 @@ class _LocationManager:
         # saving all distances computation, so they not done twice
         self._distances = Dict()
         self._locations = locations
-        types = set([l.location_type
-                     for l in locations])
         # also saving dict {location types: locations}, also
         # for saving computation later on
-        self._type_locations = {t: [] for t in types}
-        for location in locations:
+        self._type_locations = {l.location_type: [] for l in locations}
+        for location in self._locations:
             self._type_locations[location.location_type].append(location)
 
-    # return a set of all known location types
-    def get_location_types(self):
-        return set(self._type_locations.keys())
+    # return all known location types
+    @property
+    def type_locations(self):
+        return self._type_locations
 
     # return {location_type:[locations]}
     def get_locations_by_types(self, location_types):
-        return {type_: self._type_locations[type_]
+        return {type_: self.type_locations[type_]
                 for type_ in location_types
-                if type_ in self._type_locations}
+                if type_ in self.type_locations}
 
     # return list of locations of specified type
     def get_locations(self, location_type):
         try:
-            return self._type_locations[location_type]
+            return self.type_locations[location_type]
         except KeyError:
             return []
 
@@ -55,6 +48,7 @@ class _LocationManager:
     # by either retrieving it from _distances
     # (if previously computed) or by computing
     # it (and then saving it in _distances)
+    # TODO: use lru_cache here?
     def get_distances(self, l1, l2):
         d = self._distances[l1][l2]
         if isinstance(d, float) or len(d) > 0:
@@ -66,7 +60,11 @@ class _LocationManager:
 
     # returns the location of one of the specified type
     # closest to location
+    # TODO: fix implementation and test
     def get_closest(self, location, location_types):
+        # Right now we raise an error
+        raise NotImplementedError
+
         if location_types is None:
             locations = self._locations
             index = 1
@@ -105,7 +103,6 @@ class _LocationManager:
 
 
 class City:
-
     """
     User-end interface for querying a city
 
@@ -117,7 +114,7 @@ class City:
     __slots__ = ("_name", "_topology", "_pool", "_nb_processes",
                  "_plans", "_plan_id", "_locations_manager")
 
-    def __init__(self, name, topology, nb_processes=1):
+    def __init__(self, name, locations, topology, nb_processes=1):
         # arbitrary name provided by the user
         self._name = name
         # topology object, allows to generate plan to go from
@@ -133,7 +130,7 @@ class City:
         # used for attributing a unique new id to each plan
         self._plan_id = 0
         # used to order the locations
-        self._locations_manager = _LocationManager(list(self.get_locations()))
+        self._locations_manager = LocationManager(locations)
 
     def __getstate__(self):
         # this is used to inform pickle which attributes should
@@ -153,8 +150,9 @@ class City:
             setattr(self, attr, value)
         self._pool = multiprocessing.Pool(processes=self._nb_processes)
 
-    def get_name(self):
-        """Returns the name of the city"""
+    @property
+    def name(self):
+        """Returns the name of the city."""
         return self._name
 
     def _next_plan_id(self):
@@ -162,26 +160,21 @@ class City:
         self._plan_id += 1
         return self._plan_id
 
-    def get_locations(self, location_types=None):
+    def get_locations(self, location_types=LocationType):
         """
         Returns an iterator over the locations hosted by the city, possibly filtering by
         location type
 
         :param location_types: either a :py:class:`city_graph.types.LocationType`,
-             or an interable of (default:None)
+             or an interable of (default: all types available)
 
         :returns: An iterator of :py:class:`city_graph.types.Location` instances.
         """
-        if location_types is None:
-            for n in self._topology.get_nodes():
-                yield n
-            return
         if isinstance(location_types, str):
             location_types = [location_types]
         for location_type in location_types:
-            for location in self._locations_manager.get_locations(
-                    location_type):
-                yield(location)
+            for location in self._locations_manager.get_locations(location_type):
+                yield location
 
     def get_locations_by_types(self, location_types):
         """
@@ -199,7 +192,7 @@ class City:
         Returns the set of all location types having at least one
         representative location in the city
         """
-        return self._locations_manager.get_location_types()
+        return self._locations_manager.type_locations
 
     def compute_distances(self):
         """
