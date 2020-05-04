@@ -38,10 +38,10 @@ class LocationType(str, Enum):
     Type of location.
 
     :note: Compiled from amenity, leisure and building type values in
-    OpenStreetMap. For the original lists, please refer to:
-        * https://wiki.openstreetmap.org/wiki/Key:amenity
-        * https://wiki.openstreetmap.org/wiki/Key:leisure
-        * https://wiki.openstreetmap.org/wiki/Key:building
+        OpenStreetMap. For the original lists, please refer to:
+            * https://wiki.openstreetmap.org/wiki/Key:amenity
+            * https://wiki.openstreetmap.org/wiki/Key:leisure
+            * https://wiki.openstreetmap.org/wiki/Key:building
     """
 
     # Sustenance section: reduced down to two types depending on
@@ -57,7 +57,7 @@ class LocationType(str, Enum):
 
     # Transportation section: only interested in stations and parking
     # lots.
-    PUBLIC_TRANPORT_STATION = "public_transport_station"
+    PUBLIC_TRANSPORT_STATION = "public_transport_station"
     PARKING = "parking"
 
     # Financial section: ignored. Banks will be classified as offices.
@@ -97,8 +97,11 @@ class LocationType(str, Enum):
 LOCATION_TYPES = set(item.value for item in LocationType)
 
 
-class PathCriterion(Enum):
-    
+class PathCriterion(str, Enum):
+    """
+    Shortest path between two locations can be computed based on either
+    duration or distance.
+    """
     DURATION = "duration"
     DISTANCE = "distance"
 
@@ -108,39 +111,45 @@ class Preferences:
     Encapsulate the user's preferences for path planning,
     e.g.  his/her relative preferrances for the various transporation modes.
 
-    :param criterion: graph edge attribute used as weight (default:duration) 
+    :param criterion: graph edge attribute used as weight (default:duration)
     :param weights: dictionary of keys of type :py:class:`.MobilityType` related
-    to a preference weight (the highest the value, the preferred the transportation mode)
+        to a preference weight (the highest the value, the preferred the transportation mode)
     """
 
-    __slots__ = ("_weights","_criterion")
+    __slots__ = ("_mobility", "_criterion", "_data")
 
     def __init__(self,
                  criterion=PathCriterion.DURATION,
-                 weights=None):
+                 mobility=None,
+                 data=None):
 
         if criterion not in PathCriterion:
-            message = str(criterion)+": "
+            message = str(criterion) + ": "
             message += "Unknown criterion, use a member of the PathCriterion enum:\n\t- "
             message += '\n\t- '.join(t.__str__() for t in PathCriterion)
             raise ValueError(message)
-        
-        self._weights = weights or {}
-        self._normalize_weights()
+
+        self._mobility = mobility or {}
+        self._normalize_mobility()
         self._criterion = criterion
+        self._data = data or []
+
+    @property
+    def data(self):
+        return self._data
 
     @property
     def criterion(self):
         return self._criterion
-        
-    @property
-    def weights(self):
-        return self._weights
 
-    @weights.setter
-    def weights(self, values):
-        self._weights = values
-        self._normalize_weights()
+    @property
+    def mobility(self):
+        return self._mobility
+
+    @mobility.setter
+    def mobility(self, values):
+        self._mobility = values
+        self._normalize_mobility()
 
     # because it is more intuitive, weights is provided by the user
     # as (for example):
@@ -153,12 +162,12 @@ class Preferences:
     # as when computing shortest path,
     # paths for walking will have lower weights
 
-    def _normalize_weights(self):
-        sum_weights = sum(self._weights.values())
-        normalized_weights = {mode: value / sum_weights
-                              for mode, value in self._weights.items()}
-        self._weights = {mode: (1.0 - nw)
-                         for mode, nw in normalized_weights.items()}
+    def _normalize_mobility(self):
+        sum_mobility = sum(self._mobility.values())
+        normalized_mobility = {mode: value / sum_mobility
+                               for mode, value in self._mobility.items()}
+        self._mobility = {mode: (1.0 - nw)
+                          for mode, nw in normalized_mobility.items()}
 
 
 class Location:
@@ -176,7 +185,7 @@ class Location:
     def __init__(self, location_type, coordinates, name=None, node=None):
 
         if location_type not in LOCATION_TYPES:
-            message = str(location_type)+": "
+            message = str(location_type) + ": "
             message += "Unknown location type, use a member of the LocationType enum:\n\t- "
             message += '\n\t- '.join(t.__str__() for t in LocationType)
             raise ValueError(message)
@@ -185,18 +194,21 @@ class Location:
 
         self._location_type = location_type
 
-        if isinstance(coordinates,shapely.geometry.Point):
+        if isinstance(coordinates, shapely.geometry.Point):
             self._coordinates = coordinates
-        else :
+        else:
             self._coordinates = shapely.geometry.Point(coordinates)
-            
+
         self.name = name
         self.node = node
 
+    def __str__(self):
+        return str(self.location_id) + " | " + self.name + " (" + self._location_type + ")"
+
     @classmethod
     def _get_id(cls):
-        cls.__id_count += 1
-        return cls.__id_count
+        cls._id_count += 1
+        return cls._id_count
 
     @property
     def location_id(self):
@@ -215,12 +227,8 @@ class Location:
         cls._id_count += 1
         return cls._id_count
 
-    def location_type(self):
-        return self._location_type
-
-    @property
-    def coordinates(self):
-        return self._coordinates
-
-    def distance(self,other):
+    def distance(self, other):
+        """
+        Returns the distance with other
+        """
         return self._coordinates.distance(other._coordinates)
