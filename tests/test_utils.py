@@ -28,14 +28,14 @@ class TestRandomGenerator(RandomTestCase):
         """Checks the initialization of a RNG."""
 
         # Seed is a read-only property
-        _ = self.rng.seed
+        _ = self.rng.rng_seed
         with self.assertRaises(AttributeError):
-            self.rng.seed = 1
+            self.rng.rng_seed = 1
 
         # Seed provided
         seed = self.rng.randint(1e6)
         rng2 = RandomGenerator(seed)
-        self.assertEqual(seed, rng2.seed)
+        self.assertEqual(seed, rng2.rng_seed)
 
     def test_generate_numbers(self):
         """Checks the methods generating random numbers."""
@@ -56,7 +56,7 @@ class TestRandomGenerator(RandomTestCase):
         # rngs with different seeds generate different sequences
         rng2 = RandomGenerator()
         rng3 = RandomGenerator()
-        while rng2.seed == rng3.seed:
+        while rng2.rng_seed == rng3.rng_seed:
             rng3 = RandomGenerator()
 
         self.assertNotAlmostEqual(rng2(), rng3())
@@ -71,27 +71,27 @@ class TestRandomGenerator(RandomTestCase):
         """Checks the methods generating strings."""
 
         # Random length
-        s = self.rng.randstr()
+        s = self.rng.rand_str()
         self.assertIsInstance(s, str)
 
         # Specified length
         length = self.rng.randint(64)
-        s2 = self.rng.randstr(length)
+        s2 = self.rng.rand_str(length)
         self.assertEqual(len(s2), length)
 
         # rngs with different seeds generate different sequences
         rng2 = RandomGenerator()
         rng3 = RandomGenerator()
-        while rng2.seed == rng3.seed:
+        while rng2.rng_seed == rng3.rng_seed:
             rng3 = RandomGenerator()
 
-        self.assertNotEqual(rng2.randstr(length), rng3.randstr(length))
+        self.assertNotEqual(rng2.rand_str(length), rng3.rand_str(length))
 
     def test_choice(self):
         """Checks the method for extracting a random element."""
 
         # If sequence empty: exception
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError):
             self.rng.choice([])
 
         # Real sequence
@@ -102,7 +102,7 @@ class TestRandomGenerator(RandomTestCase):
         # rngs with different seeds generate different sequences
         rng2 = RandomGenerator()
         rng3 = RandomGenerator()
-        while rng2.seed == rng3.seed:
+        while rng2.rng_seed == rng3.rng_seed:
             rng3 = RandomGenerator()
 
         length = 10
@@ -117,12 +117,12 @@ class TestRandomGenerator(RandomTestCase):
 
         # Sample size too large
         with self.assertRaises(ValueError):
-            self.rng.sample(seq, length + 1)
+            self.rng.choice(seq, length + 1, replace=False)
 
         # Check sample size and content
         old_seq = seq.copy()
         k = self.rng.randint(length)
-        sample = self.rng.sample(seq, k)
+        sample = self.rng.choice(seq, k, replace=False)
 
         self.assertEqual(len(sample), k)
         for e in sample:
@@ -130,3 +130,19 @@ class TestRandomGenerator(RandomTestCase):
 
         # Seq should not be modified
         self.assertListEqual(seq, old_seq)
+
+    def test_uniform(self):
+        """Checks the method extracting a value between boundaries."""
+
+        xmin, xmax = tuple(sorted([self.rng.randint(100) for _ in range(2)]))
+        self.assertLessEqual(xmin, xmax)
+
+        # Args are in the right order
+        val = self.rng.uniform(xmin, xmax)
+        self.assertGreaterEqual(val, xmin)
+        self.assertLessEqual(val, xmax)
+
+        # Args are flipped
+        val = self.rng.uniform(xmax, xmin)
+        self.assertGreaterEqual(val, xmin)
+        self.assertLessEqual(val, xmax)

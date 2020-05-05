@@ -10,16 +10,16 @@ from math import sin, cos, sqrt, atan2, radians
 class GeoCoordinates:
     """Class representing a geolocation.
 
-    :param float longitude: Longitude in degrees (between 0 and 360)
-    :param float latitute: Latitude in degrees (between -90 and 90)
+    :param obj point: An objet with coordinates that are reachable
+        through the attributes ``x`` and ``y`` (e.g. a ``shapely Point``).
     """
 
     # Mean Earth radius in cm.
     EARTH_RADIUS_CM = 6371. * 1e5
 
-    def __init__(self, longitude, latitude):
-        self.longitude = longitude
-        self.latitude = latitude
+    def __init__(self, point):
+        self.longitude = float(point.x)
+        self.latitude = float(point.y)
 
     def __hash__(self):
         # An instance is defined by its coordinates only
@@ -51,3 +51,7 @@ class GeoCoordinates:
         a = sin(delta_lat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(delta_long / 2) ** 2
         d = 2 * atan2(sqrt(a), sqrt(1 - a))
         return d * GeoCoordinates.EARTH_RADIUS_CM
+
+    def distance_to(self, other):
+        """Same as the class method but for the instance."""
+        return GeoCoordinates.distance(self, other)

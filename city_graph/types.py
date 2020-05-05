@@ -1,5 +1,6 @@
+from collections import UserDict
 from enum import Enum
-import shapely.geometry
+from shapely.geometry import Point
 
 
 class TransportType(str, Enum):
@@ -97,6 +98,59 @@ class LocationType(str, Enum):
 LOCATION_TYPES = set(item.value for item in LocationType)
 
 
+class BaseEnumMapping(UserDict):
+    """
+    Abstract class mapping members of an enumeration to values.
+    Values can be set using the enumeration members or their lower-cased names.
+    """
+
+    def __init__(self, enum_cls, **kwargs):
+        super().__init__()
+
+        # Initialize everything
+        self.data = {
+            member: kwargs.pop(member.name.lower(), 0)
+            for member in enum_cls
+        }
+
+    @property
+    def members(self):
+        """Returns the keys."""
+        return self.data.keys()
+
+    # Cannot delete item
+    def __delitem__(self, *args, **kwargs):
+        raise RuntimeError('Deleting an item is not allowed.')
+
+    # Cannot add new item
+    def __setitem__(self, key, value):
+
+        for m in self.members:
+            if key in (m, m.name.lower()):
+                super().__setitem__(m, value)
+                return
+        # If non-exisiting item, raise exception
+        message = 'Adding new item is not allowed, you can only reset one of these:\n - '
+        message += '\n - '.join(m.__str__() for m in self.members)
+        raise RuntimeError(message)
+
+    def __repr__(self):
+        return "{}:\n - {}".format(
+            type(self).__name__,
+            '\n - '.join('{} = {}'.format(m.__str__(), self.data[m])
+                         for m in self.members))
+
+
+class LocationDistribution(BaseEnumMapping):
+    """
+    Class representing a distribution of location types.
+    The values represent the number of locations for a given type.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(LocationType, **kwargs)
+
+
 class PathCriterion(str, Enum):
     """
     Shortest path between two locations can be computed based on either
@@ -171,8 +225,9 @@ class Preferences:
 
 
 class Location:
-
     """
+    Class representing a location.
+
     :param int location_id: unique id of the location
     :param location_type: the type of location
     :param coordinates: where the location is (instance of shapely.geometry.Point)
@@ -182,6 +237,7 @@ class Location:
 
     _id_count = 0
 
+    # TODO: class not tested
     def __init__(self, location_type, coordinates, name=None, node=None):
 
         if location_type not in LOCATION_TYPES:
@@ -194,10 +250,10 @@ class Location:
 
         self._location_type = location_type
 
-        if isinstance(coordinates, shapely.geometry.Point):
+        if isinstance(coordinates, Point):
             self._coordinates = coordinates
         else:
-            self._coordinates = shapely.geometry.Point(coordinates)
+            self._coordinates = Point(coordinates)
 
         self.name = name
         self.node = node
@@ -217,6 +273,14 @@ class Location:
     @property
     def coordinates(self):
         return self._coordinates
+
+    @property
+    def x(self):
+        return self._coordinates.x
+
+    @property
+    def y(self):
+        return self._coordinates.y
 
     @property
     def location_type(self):

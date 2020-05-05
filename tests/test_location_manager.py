@@ -1,3 +1,6 @@
+from itertools import combinations
+from math import factorial
+
 from city_graph import city
 
 from .fixtures import RandomTestCase
@@ -11,8 +14,9 @@ class _Location:
         self.index = index
         self.location_type = location_type
 
-    def distance(self, other):
-        return abs(self.index - other.index)
+    @classmethod
+    def distance(cls, l1, l2):
+        return abs(l1.index - l2.index)
 
     def __eq__(self, other):
         if self.index != other.index:
@@ -44,35 +48,62 @@ class TestLocationManager(RandomTestCase):
             else:
                 self._locations.append(_Location(index, "extra"))
 
-    def distance(self, l1, l2):
-        return abs(l1.index - l2.index)
+        # Add nodes
+        for index, loc in enumerate(self._locations):
+            if index % 3 == 0:
+                loc.node = 0
+            elif index % 3 == 1:
+                loc.node = 1
+            else:
+                loc.node = 2
+
+        # LocationManager
+        self.lm = city.LocationManager(self._locations, fdistance=_Location.distance)
 
     def test_types(self):
         """Check types are extracted properly."""
-        lm = city.LocationManager(self._locations)
-        self.assertSetEqual(set(lm.type_locations), set(["even", "odd", "extra"]))
 
-        evens = lm.get_locations("even")
-        odds = lm.get_locations("odd")
-        extras = lm.get_locations("extra")
+        self.assertSetEqual(set(self.lm.location_types), set(["even", "odd", "extra"]))
 
-        self.assertTrue(len(evens) == 5)
-        self.assertTrue(len(odds) == 4)
-        self.assertTrue(len(extras) == 2)
+        # List
+        evens = self.lm.get_locations("even")
+        odds = self.lm.get_locations("odd")
+        extras = self.lm.get_locations("extra")
+        # Dict
+        all_locs = sum(self.lm.get_locations().values(), [])
+
+        self.assertEqual(len(evens), 5)
+        self.assertEqual(len(odds), 4)
+        self.assertEqual(len(extras), 2)
+        self.assertEqual(len(all_locs), 11)
 
         even_indexes = [e.index for e in evens]
-        self.assertTrue(even_indexes == [0, 2, 4, 6, 8])
+        self.assertListEqual(even_indexes, [0, 2, 4, 6, 8])
+
+    def test_locations_node_mapping(self):
+        """Checks that the locations are organized by node."""
+
+        node0 = [l.index for l in self.lm._locations_by_node[0]]
+        node1 = [l.index for l in self.lm._locations_by_node[1]]
+        node2 = [l.index for l in self.lm._locations_by_node[2]]
+
+        self.assertListEqual(node0, [0, 3, 6, 9])
+        self.assertListEqual(node1, [1, 4, 7, 10])
+        self.assertListEqual(node2, [2, 5, 8])
 
     def test_compute_all_distances(self):
-        lm = city.LocationManager(self._locations)
-        lm.compute_all_distances()
-        distances = lm.get_all_distances()
-        for index, l1 in enumerate(self._locations):
-            for l2 in self._locations[index + 1:]:
-                self.assertTrue(distances[l1][l2] == self.distance(l1, l2))
+        self.lm.compute_all_distances()
+        for l1, l2 in combinations(self._locations, 2):
+            self.assertAlmostEqual(self.lm.get_distance(l1, l2), _Location.distance(l1, l2))
+            self.assertAlmostEqual(self.lm.get_distance(l1, l2), self.lm.get_distance(l2, l1))
+
+        # Distances are not saved twice - should be C(k,n) + n (with replacement)
+        n = len(self._locations)
+        k = 2
+        num_distances = factorial(n) / (factorial(n - k) * factorial(k)) + n
+        self.assertEqual(len(self.lm.get_all_distances()), num_distances)
 
     def test_get_closest(self):
-        lm = city.LocationManager(self._locations)
         random_loc = self.rng.choice(self._locations)
         with self.assertRaises(NotImplementedError):
-            lm.get_closest(random_loc, "extra")
+            self.lm.get_closest(random_loc, "extra")

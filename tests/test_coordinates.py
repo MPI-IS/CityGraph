@@ -1,18 +1,18 @@
-from unittest import TestCase
 import math
 
 from city_graph.coordinates import GeoCoordinates
-from city_graph.utils import RandomGenerator
+
+from .fixtures import RandomTestCase
 
 
-class TestGeoCoordinates(TestCase):
+class TestGeoCoordinates(RandomTestCase):
     """Class testing the GeoCoordinates."""
 
     def setUp(self):
-        self.rng = RandomGenerator()
+        super().setUp()
 
         self.x, self.y = (self.rng(), self.rng())
-        self.c = GeoCoordinates(self.x, self.y)
+        self.c = self.create_node(self.x, self.y)
 
     def test_init_and_properties(self):
         """Checks the initializations and the properties."""
@@ -24,23 +24,23 @@ class TestGeoCoordinates(TestCase):
         """Checks the hash method."""
 
         # Similar coordinates - same hash
-        c1 = GeoCoordinates(self.x, self.y)
+        c1 = self.create_node(self.x, self.y)
         self.assertEqual(hash(self.c), hash(c1))
 
         # Invert coordinates - different hash
-        c2 = GeoCoordinates(self.y, self.x)
+        c2 = self.create_node(self.y, self.x)
         self.assertNotEqual(hash(self.c), hash(c2))
 
     def test_compute_distance(self):
         """Checks the method calculating the distance between two coordinates."""
 
         # Reference point on the equator and opposite point
-        p0 = GeoCoordinates(self.rng.randint(360), 0)
-        p1 = GeoCoordinates(p0.longitude + 180, 0)
+        p0 = self.create_node(self.rng.randint(360), 0)
+        p1 = self.create_node(p0.longitude + 180, 0)
 
         # North and South poles
-        pN = GeoCoordinates(self.rng.randint(360), 90)
-        pS = GeoCoordinates(self.rng.randint(360), -90)
+        pN = self.create_node(self.rng.randint(360), 90)
+        pS = self.create_node(self.rng.randint(360), -90)
 
         self.assertAlmostEqual(GeoCoordinates.distance(p0, p0), 0)
         # Precision to the cm

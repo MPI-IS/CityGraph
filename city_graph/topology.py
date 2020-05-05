@@ -4,15 +4,31 @@ Topology
 
 Module for building and operating on graphs.
 """
+from enum import Enum
 from functools import partial
-from networkx import MultiGraph, single_source_dijkstra
+from itertools import product, combinations
+from networkx import Graph, MultiGraph, \
+    minimum_spanning_tree, single_source_dijkstra
+from networkx.algorithms.community.asyn_fluid import asyn_fluidc
 from networkx.exception import NetworkXNoPath
-from numpy import array
+import numpy as np
 
 from .utils import RandomGenerator
 
+
 # Name used to hold the edge type
 EDGE_TYPE = 'type'
+
+# Precision for float comparisons
+EPS_PRECISION = 1e-6
+
+
+class TerminationReason(Enum):
+    """Enumeration of the reasons for termination of an algorithm."""
+
+    NO_TERMINATION = 0
+    MAX_ITER = 1
+    ALL_NODES_CONNECTED = 2
 
 
 class BaseTopology:
@@ -34,14 +50,24 @@ class BaseTopology:
 class MultiEdgeUndirectedTopology(BaseTopology):
     """Class representing a topology with mutltiple undirected edges.
 
-    :param rng: Random number generator.
-    :type rng: :py:class:`.RandomGenerator`
+    :param iter nodes: Nodes in the graph
+    :param iter edges: Edges in the graph
     """
 
-    def __init__(self, rng=None):
+    def __init__(self, nodes=None, edges=None):
 
         self.graph = MultiGraph()
-        self.rng = rng or RandomGenerator()
+
+        # Nodes
+        # TODO: the `None` default value is just to not break things :)
+        if nodes:
+            for node in nodes:
+                self.add_node(node)
+
+        # Edges
+        if edges:
+            for (n1, n2), (edge_type, dict_attrs) in edges.items():
+                self.add_edge(n1, n2, edge_type, **dict_attrs)
 
     @property
     def num_of_nodes(self):
@@ -53,6 +79,11 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         """The number of nodes in the topology."""
         return self.graph.number_of_edges()
 
+    @property
+    def nodes(self):
+        """The nodes in the graph."""
+        return self.graph.nodes
+
     def add_node(self, node_label, **node_attrs):
         """Add a node defined by its label.
 
@@ -60,6 +91,14 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :param dict node_attrs: Node attributes.
         """
         self.graph.add_node(node_label, **node_attrs)
+
+    def get_node(self, node_label):
+        """Return node from its label."""
+
+        try:
+            return self.graph.nodes[node_label]
+        except KeyError:
+            raise KeyError("Node %s does not exist." % node_label)
 
     def add_edge(self, node1, node2, edge_type, **edge_attrs):
         """Add an edge between two nodes in the graph.
@@ -70,10 +109,9 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :param dict edge_attrs: Additional attributes of the edge.
         """
 
-        if not self.graph.has_node(node1):
-            raise ValueError("First node %s does not exist." % node1)
-        if not self.graph.has_node(node2):
-            raise ValueError("Second node %s does not exist." % node2)
+        _ = self.get_node(node1)
+        _ = self.get_node(node2)
+
         # Adding type to attributes
         edge_attrs[EDGE_TYPE] = edge_type
         self.graph.add_edge(node1, node2, **edge_attrs)
@@ -92,7 +130,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         try:
             edges = dict(self.graph[node1][node2])
         except KeyError:
-            raise ValueError('No edge between nodes %s and %s' % (node1, node2))
+            raise KeyError('No edge between nodes %s and %s' % (node1, node2))
 
         # Filter if necessary
         if edge_types:
@@ -127,7 +165,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             weights = [(attrs[EDGE_TYPE], attrs[weight]) for attrs in edges.values()
                        if attrs[EDGE_TYPE] in allowed_types]
         except KeyError:
-            raise ValueError(
+            raise KeyError(
                 "No edge with attribute %s found between nodes %s and %s" % (
                     weight, node1, node2
                 ))
@@ -174,12 +212,15 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             if not self.graph.has_node(node):
                 raise ValueError("Node %s does not exist." % node)
 
-        # If allowed_types is not a dict-like object,
-        # transform the variable into one with None values.
-        try:
-            _ = allowed_types[self.rng.choice(list(allowed_types))]
-        except TypeError:
-            allowed_types = {k: None for k in set(allowed_types)}
+        # If allowed_types is not a dict, the allowed_types are either:
+        #   * a string
+        #   * an iterable
+        # and we need to build the dictionnary
+        if not isinstance(allowed_types, dict):
+            if isinstance(allowed_types, str):
+                allowed_types = {allowed_types: None}
+            else:
+                allowed_types = {k: None for k in allowed_types}
 
         # Using partial function to pass the edge types
         # The weight_func will be called for each edge on the graph
@@ -195,8 +236,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             score, path = single_source_dijkstra(
                 self.graph, node1, node2, weight=weight_func)
         except NetworkXNoPath:
-            raise ValueError("No path found with type %s between %s and %s." %
-                             (allowed_types, node1, node2))
+            raise RuntimeError("No path found with type %s between %s and %s." %
+                               (allowed_types, node1, node2))
 
         # Build the dict containing the attributes data
         # Because we do not want to assume anything about the data,
@@ -210,7 +251,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
                 edge_types.append(best_types[(u, v)])
             except KeyError:
                 edge_types.append(best_types[(v, u)])
-        data[EDGE_TYPE] = array(edge_types)
+        data[EDGE_TYPE] = np.array(edge_types)
 
         # Additional data if needed
         edge_data = edge_data or []
@@ -218,8 +259,152 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             try:
                 temp_gen = [self.get_edges(u, v, str(t))[0][attr]
                             for u, v, t in zip(path, path[1:], data[EDGE_TYPE])]
-                data[attr] = array(temp_gen)
+                data[attr] = np.array(temp_gen)
             except KeyError:
-                raise ValueError("Some nodes do not have the attribute '%s'." % attr)
+                raise KeyError("Some nodes do not have the attribute '%s'." % attr)
 
         return (score, path, data)
+
+    def add_energy_based_edges(self, edge_type, degree_weight=1.0, distance_weight=1.0,
+                               num_sampling_steps=None, num_samples_per_step=10, rng=None):
+        """
+        This algorithm creates edges based on an energy sampling mechanism.
+        There are two knobs to turn:
+            1. distance_weight: larger value results in spatially closer nodes
+                being more likely to be connected.
+            2. degree_weight: larger value results in nodes with large degree
+                getting preferentially connected.
+        """
+        print("[Topology] Starting energy sampling algorithm to build edges.")
+
+        rng = rng or RandomGenerator()
+
+        # Step 1: prepare
+        # Compute all distances: graph is undirected so we want all combinations with replacements
+        # so we should have in total C(2,n) + n distances
+        # TODO: We compute things twice for now, so things might be improved
+        array_shape = (self.num_of_nodes,) * 2
+        distances = np.zeros(shape=array_shape)
+        array_size = distances.size
+        for (i, n1), (j, n2) in product(enumerate(self.nodes), repeat=2):
+            distances[i, j] = n1.distance_to(n2)
+
+        # Normalize by maximum distance - save scaling factor as it will be needed
+        max_distance = distances.max()
+        distances /= max_distance
+
+        # Adjacency matrix
+        adjacency_matrix = np.zeros(shape=array_shape)
+
+        # Step 2: sampling
+        step = 0
+        termination = TerminationReason.NO_TERMINATION
+        while termination == TerminationReason.NO_TERMINATION:
+
+            # This loop could be put in a separate function.
+            # We will see if it is necessary
+
+            # Sampling step
+            # a) compute the degree energies
+            edge_degrees = 1 / 2 * (
+                adjacency_matrix.sum(0, keepdims=True) +
+                adjacency_matrix.sum(1, keepdims=True)
+            )
+            degree_energy = -degree_weight * edge_degrees
+
+            # b) compute the distance energies
+            distance_energy = distance_weight * distances
+
+            # c) compute edge sampling probability distribution
+            total_energy = degree_energy + distance_energy
+
+            # mask connected edges
+            total_energy[adjacency_matrix > EPS_PRECISION] = np.inf
+            # mask self-edges
+            np.fill_diagonal(total_energy, np.inf)
+
+            # compute Boltzmann distribution and normalize it
+            bolz_dist = np.exp(-total_energy)
+            bolz_dist /= bolz_dist.sum()
+
+            # d) sample step
+            # sample indices to activate
+            sample_indices = rng.choice(
+                np.arange(array_size), size=(num_samples_per_step,),
+                p=bolz_dist.ravel(), replace=True)
+
+            # unravel indices - get a tuple
+            unravel_indices = np.unravel_index(sample_indices, array_shape)
+
+            # add sample edges to the adjacency matrix
+            # and make matric symmetric
+            adjacency_matrix[unravel_indices] = 1
+            adjacency_matrix[unravel_indices[::-1]] = 1
+
+            # Increase counter
+            step += 1
+
+            # Check termination
+            # Maximum step number reached
+            if num_sampling_steps:
+                if step >= num_sampling_steps:
+                    termination = TerminationReason.MAX_ITER
+            # All nodes are connected
+            if adjacency_matrix.sum(0).min() > EPS_PRECISION:
+                termination = TerminationReason.ALL_NODES_CONNECTED
+
+        # Inform the user why the algorithm has stopped
+        print("[Topology] Sampling finished:", termination)
+
+        # Build edges from the adjacency matrix
+        # Rescale the distances
+        distances *= max_distance
+
+        # Get pair of nodes to connect
+        pairs = ((n1, n2, i, j) for (i, n1), (j, n2) in product(enumerate(self.nodes), repeat=2)
+                 if (i, j) in zip(*adjacency_matrix.nonzero()))
+
+        # Create edges
+        # TODO: attributes should be passed to the function
+        weight = "distance"
+        old_num_edges = self.num_of_edges
+        for n1, n2, i, j in pairs:
+            self.add_edge(n1, n2, edge_type, **{weight: distances[i, j]})
+
+        # Inform that edges have been built
+        print("[Topology] %i edges have been created" % (self.num_of_edges - old_num_edges))
+
+    def add_edges_between_centroids(self, edge_type, num_centroids=10, rng=None):
+        """
+        This algorithm creates edges between `central` nodes. These central nodes
+        are determined by a clustering algorithm (here the Fluid Communities algorithm)
+        """
+        print("[Topology] Starting building edges between central nodes.")
+        rng = rng or RandomGenerator()
+
+        # Calculate clusters
+        clusters = (list(c) for c in asyn_fluidc(
+            self.graph, k=num_centroids, seed=rng.rand_int(RandomGenerator.MAX_SEED)))
+
+        # Extract centroids
+        centroids = [c[int(np.argmax([self.graph.degree[n] for n in c]))] for c in clusters]
+
+        # Create temporary graph for the centroids
+        tmp_graph = Graph()
+        tmp_graph.add_nodes_from(centroids)
+        # We need the combinations because the graph is undirected and we dont want self-edges
+        # TODO: attributes should be passed to the function
+        weight = "distance"
+        for n1, n2 in combinations(centroids, 2):
+            tmp_graph.add_edge(n1, n2, **{weight: n1.distance_to(n2)})
+
+        # Calculate subgraph with the minimum sum of edge weights
+        subgraph = minimum_spanning_tree(tmp_graph, weight=weight)
+
+        # Build edges
+        # Here we can reuse the previously calculated distances
+        for (n1, n2) in subgraph.edges:
+            self.add_edge(n1, n2, edge_type, **subgraph[n1][n2])
+
+        # Inform that edges have been built
+        print("[Topology] %i edges have been created" % len(subgraph.edges))
