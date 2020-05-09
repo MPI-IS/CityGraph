@@ -95,9 +95,6 @@ class LocationType(str, Enum):
     CHURCH = "church"
 
 
-LOCATION_TYPES = set(item.value for item in LocationType)
-
-
 class BaseEnumMapping(UserDict):
     """
     Abstract class mapping members of an enumeration to values.
@@ -240,7 +237,7 @@ class Location:
     # TODO: class not tested
     def __init__(self, location_type, coordinates, name=None, node=None):
 
-        if location_type not in LOCATION_TYPES:
+        if location_type not in LocationType:
             message = str(location_type) + ": "
             message += "Unknown location type, use a member of the LocationType enum:\n\t- "
             message += '\n\t- '.join(t.__str__() for t in LocationType)

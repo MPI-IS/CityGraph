@@ -9,6 +9,11 @@ from city_graph.types import LocationType, Location, \
 from .fixtures import RandomTestCase
 
 
+# see method : test_parallelism
+SLEEP_TIME = 0.001
+TOTAL_TIME_CHECK = 2.0
+
+
 class TestCity(RandomTestCase):
     """Class testing city.City."""
 
@@ -176,7 +181,7 @@ class TestCity(RandomTestCase):
                 _ = city._topology.get_node(loc.node)
 
     def test_get_locations(self):
-        """checking the city returns all locations"""
+        """Checking the city returns all locations"""
 
         # getting the id of the locations from the city
         locations = self.city.get_locations()
@@ -226,9 +231,9 @@ class TestCity(RandomTestCase):
             [LocationType.SUPERMARKET, LocationType.PUBLIC_TRANSPORT_STATION])
 
         # comparing with ground truth
-        self.assertTrue(len(locations.keys()) == 2)
-        self.assertTrue(LocationType.SUPERMARKET in locations)
-        self.assertTrue(LocationType.PUBLIC_TRANSPORT_STATION in locations)
+        self.assertEqual(len(locations.keys()),2)
+        self.assertIn(LocationType.SUPERMARKET,locations)
+        self.assertIn(LocationType.PUBLIC_TRANSPORT_STATION,locations)
 
     def test_get_closest(self):
 
@@ -377,11 +382,11 @@ class TestCity(RandomTestCase):
         plan_id = -1
 
         # checking status of non existing plan throws
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.city.is_plan_ready(plan_id)
 
         # retrieving non existing plan throws
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.city.retrieve_plan(plan_id)
 
         # requesting non blocking computation, the id is returned
@@ -405,7 +410,7 @@ class TestCity(RandomTestCase):
         # this should fail, city deletes plan
         # once returned (avoiding infinite growth of
         # memory)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.city.retrieve_plan(plan_id)
 
     def test_compute_plans_single_process(self):
@@ -480,11 +485,11 @@ class TestCity(RandomTestCase):
 
         # waiting for both plans to finish
         while not self.city_2p.are_plans_ready(plan_ids):
-            time.sleep(0.001)
+            time.sleep(SLEEP_TIME)
 
         # end time
         end_time = time.time()
 
         # if things have been running in parallel, total time
         # should be less than 2 seconds (1 job is 1 second)
-        self.assertTrue((end_time - start_time) < 2)
+        self.assertTrue((end_time - start_time) < TOTAL_TIME_CHECK)

@@ -80,7 +80,7 @@ class Plan:
         return self._valid
 
     @property
-    def get(self):
+    def steps(self):
         """
         :returns: the ordered list of :py:class:`.PlanStep` (or None for an invalid plan)
         """

@@ -448,12 +448,9 @@ class City:
         False otherwise.
         See: py: meth: `.request_plan`.
 
-        : raises:: py: class: `ValueError`: if an unknown plan_id
+        : raises:: py: class: `KeyError`: if an unknown plan_id
         """
-        try:
-            result = self._plans[plan_id]
-        except BaseException:
-            raise ValueError()
+        result = self._plans[plan_id]
         return result.ready()
 
     def are_plans_ready(self, plan_ids):
@@ -464,7 +461,7 @@ class City:
 
         : param: plan_ids, an iterable of plan ids
         : returns: True if all plans ready, False otherwise
-        : raises:: py: class: `ValueError`: if any invalid plan_id
+        : raises:: py: class: `KeyError`: if any invalid plan_id
         """
         return all([self.is_plan_ready(plan_id)
                     for plan_id in plan_ids])
@@ -473,13 +470,10 @@ class City:
         """
         Returns the corresponding plan if its computation is finished, None otherwise.
         If the passed id does not correspond to a planning job,
-        a ValueError exception is raised.
+        a KeyError exception is raised.
         See: py: meth: `.request_plan`.
         """
-        try:
-            result = self._plans[plan_id]
-        except BaseException:
-            raise ValueError()
+        result = self._plans[plan_id]
         if not result.ready():
             return None
         plan = result.get()
@@ -498,7 +492,7 @@ class City:
         for plan_id in plan_ids:
             try:
                 result = self._plans[plan_id]
-            except BaseException:
+            except KeyError:
                 result = None
             if result:
                 steps = result.get()
