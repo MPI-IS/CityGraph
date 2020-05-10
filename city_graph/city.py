@@ -4,7 +4,7 @@ import multiprocessing
 from .coordinates import GeoCoordinates
 from .planning import get_plan, Plan
 from .topology import MultiEdgeUndirectedTopology
-from .types import LocationType, Location
+from .types import LocationType, Location, TransportType
 from .utils import RandomGenerator
 
 
@@ -178,7 +178,7 @@ class City:
 
     @classmethod
     def build_from_data(cls, name, locations, connections=None, rng=None,
-                        node_cls=GeoCoordinates):
+                        node_cls=GeoCoordinates, create_network=True, **kwargs):
         """
         Creates a city with locations and connections provided as input.
 
@@ -188,6 +188,8 @@ class City:
         :param rng: Random number generator.
         :type rng: :py:class: `.RandomGenerator`
         :param cls node_cls: Class used for representing a node
+        :param int create_network: Whether to run create connections using the energy algorithm
+        :param dict **kwargs: Additional kwargs to pass to the energy algorithm
 
         :note: The `node_cls` default constructor must accept a location as input argument.
         """
@@ -197,6 +199,7 @@ class City:
         city = cls(name, rng=rng)
 
         # Build nodes if necessary
+        locations = list(locations)
         for loc in locations:
             if not loc.node:
                 loc.node = node_cls(loc)
@@ -214,21 +217,30 @@ class City:
         if connections:
             edges = {(l1.node, l2.node): _ for (l1, l2), _ in connections.items()}
         city._topology = MultiEdgeUndirectedTopology(nodes, edges)
+
+        # Call energy algorithm if necessary
+        if create_network:
+            city.create_connections_by_energy(**kwargs)
+
         return city
 
     @classmethod
-    def build_random(cls, name, distribution, rng=None, x_lim=(0, 360), y_lim=(-90, 90),
-                     location_cls=Location, node_cls=GeoCoordinates):
+    def build_random(cls, name, distribution, x_lim=(0, 360), y_lim=(-90, 90),
+                     rng=None, location_cls=Location, node_cls=GeoCoordinates,
+                     create_network=True, **kwargs):
         """
         Creates a city with random locations and connections.
 
         :param str name: name of the city
         :param dict distribution: distribution of locations by type
-        :param rng: Random number generator.
         :param tuple x_lim: Coordinates range on the x-axis
         :param tuple y_lim: Coordinates range on the y-axis
+        :param rng: Random number generator.
+        :type rng: :py:class: `.RandomGenerator`
         :param cls location_cls: Class used for representing a location
         :param cls node_cls: Class used for representing a node
+        :param int create_network: Whether to run create connections using the energy algorithm
+        :param dict **kwargs: Additional kwargs to pass to the energy algorithm
 
         :note: The `location_cls` default constructor must accept a location type
             and a 2-tuple as input arguments.
@@ -247,9 +259,72 @@ class City:
             for t in types_list
         )
 
-        # Call builder - edges are still missing
-        city = cls.build_from_data(name, locations, rng=rng, node_cls=node_cls)
+        # Call builder
+        city = cls.build_from_data(name, locations, rng=rng, node_cls=node_cls,
+                                   create_network=create_network, **kwargs)
         return city
+
+    def create_connections_by_energy(
+            self, connection_types=(TransportType.ROAD, TransportType.WALK),
+            connections_per_step=10, max_iterations=None,
+            degree_factor=None, distance_factor=None,
+            distance_func=GeoCoordinates.distance):
+        """
+        Create random connections of given types using an energy sampling mechanism.
+        At each iteration, a number of new random connections are created
+            based on the degree and the distance between locations.
+        Locations are more likely to be connected if
+            * they are close
+            * they are already connected to other locations
+
+        :param connection_types: Types of the connections to add.
+        :type connection_types: str or iterable
+        :param int connections_per_step: Number of new connections created at each step.
+        :param int max_iterations: Maximum number of iterations.
+            If None, the algorithm stops when each location has been connected at least once.
+        :param float degree_factor: Multiplier applied to the degree enery component
+            during the search for new connections (higher means more prominent).
+        :param float distance_factor: Multiplier applied to the distance energy component
+            during the search for new connections (higher means more prominent).
+        :param func distance_func: Function to calculate distances between nodes.
+        """
+
+        # Normalize the factors if necessary
+        if degree_factor and distance_factor:
+            sum_factors = degree_factor + distance_factor
+            degree_factor /= sum_factors
+            distance_factor /= sum_factors
+
+        # Make edge_types iterable if it is not
+        if not isinstance(connection_types, list):
+            connection_types = list(connection_types)
+
+        # Check configuration for running the algorithm
+        if connections_per_step < 1:
+            raise RuntimeError("Samples must have a minimum size of 1.")
+
+        # Run algorithm
+        self._topology.add_energy_based_edges(
+            connection_types, connections_per_step, max_iterations,
+            degree_factor, distance_factor, distance_func, self.rng)
+
+    def create_central_connections(self, connection_types, num_central_locations=10):
+        """
+        Create random connections of given types between central locations.
+        These central locations are determined by a clustering algorithm.
+
+        :param connection_types: Types of the connections to add.
+        :type connection_types: str or iterable
+        :param int num_central_locations: Number of requested central locations.
+        """
+
+        # Make edge_types iterable if it is not
+        if not isinstance(connection_types, list):
+            connection_types = list(connection_types)
+
+        # Run algorithm
+        self._topology.add_edges_between_centroids(
+            connection_types, num_central_locations, self.rng)
 
     def __getstate__(self):
         # this is used to inform pickle which attributes should

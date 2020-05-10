@@ -1,8 +1,9 @@
 import time
+from unittest.mock import patch
 
 from city_graph.city import City
 from city_graph.planning import Plan, PlanStep
-from city_graph.topology import EDGE_TYPE
+from city_graph.topology import EDGE_TYPE, MultiEdgeUndirectedTopology
 from city_graph.types import LocationType, Location, \
     Preferences, TransportType, PathCriterion
 
@@ -92,9 +93,11 @@ class TestCity(RandomTestCase):
             plan_steps.append(plan_step)
 
         # city
-        self.city = City.build_from_data(self.city_name, self.locations, self.connections)
+        self.city = City.build_from_data(
+            self.city_name, self.locations, self.connections, create_network=False)
         # city with 2 processes
-        self.city_2p = City.build_from_data(self.city_name, self.locations, self.connections)
+        self.city_2p = City.build_from_data(
+            self.city_name, self.locations, self.connections, create_network=False)
         self.city_2p._nb_processes = 2
 
         # "manually" computed plan (i.e. ground truth plan)
@@ -135,7 +138,8 @@ class TestCity(RandomTestCase):
             self.assertFalse(hasattr(city, att))
             self.assertTrue(hasattr(self.city, att))
 
-    def test_create_city_from_data(self):
+    @patch.object(City, 'create_connections_by_energy')
+    def test_create_city_from_data(self, create_mocked):
         """Checks that we can create a city from pre-computed locations and connetions."""
 
         # We use the city built in the setup
@@ -159,12 +163,19 @@ class TestCity(RandomTestCase):
             self.assertEqual(edge_data.pop(EDGE_TYPE), mode)  # transportation mode
             self.assertDictEqual(edge_data, attrs)
 
-    def test_create_city_from_distribution(self):
+        # Energy algorithm should not have been called
+        create_mocked.assert_not_called()
+
+        # New city, this time network created
+        _ = City.build_from_data(self.city_name, self.locations, self.connections)
+        self.assertTrue(create_mocked.called)
+
+    @patch.object(City, 'create_connections_by_energy')
+    def test_create_city_from_distribution(self, create_mocked):
         """Checks that we can create a city from the location type distribution."""
 
         distribution = {t: self.rng.randint(10) for t in LocationType}
-        # topology is not used here
-        city = City.build_random(self.city_name, distribution, rng=self.rng)
+        city = City.build_random(self.city_name, distribution, rng=self.rng, create_network=False)
         lm = city._locations_manager
 
         # Check the number of locations
@@ -179,6 +190,13 @@ class TestCity(RandomTestCase):
         for loct in distribution:
             for loc in lm.get_locations(loct):
                 _ = city._topology.get_node(loc.node)
+
+        # Energy algorithm should not have been called
+        create_mocked.assert_not_called()
+
+        # New city, this time network created
+        _ = City.build_random(self.city_name, distribution, rng=self.rng)
+        self.assertTrue(create_mocked.called)
 
     def test_get_locations(self):
         """Checking the city returns all locations"""
@@ -231,9 +249,9 @@ class TestCity(RandomTestCase):
             [LocationType.SUPERMARKET, LocationType.PUBLIC_TRANSPORT_STATION])
 
         # comparing with ground truth
-        self.assertEqual(len(locations.keys()),2)
-        self.assertIn(LocationType.SUPERMARKET,locations)
-        self.assertIn(LocationType.PUBLIC_TRANSPORT_STATION,locations)
+        self.assertEqual(len(locations.keys()), 2)
+        self.assertIn(LocationType.SUPERMARKET, locations)
+        self.assertIn(LocationType.PUBLIC_TRANSPORT_STATION, locations)
 
     def test_get_closest(self):
 
@@ -493,3 +511,17 @@ class TestCity(RandomTestCase):
         # if things have been running in parallel, total time
         # should be less than 2 seconds (1 job is 1 second)
         self.assertTrue((end_time - start_time) < TOTAL_TIME_CHECK)
+
+    @patch.object(MultiEdgeUndirectedTopology, 'add_energy_based_edges')
+    def test_create_connections_by_energy(self, add_mocked):
+        """Checks the algo creating connections by energy."""
+
+        self.city.create_connections_by_energy()
+        self.assertTrue(add_mocked.called)
+
+    @patch.object(MultiEdgeUndirectedTopology, 'add_edges_between_centroids')
+    def test_create_central_connections(self, add_mocked):
+        """Checks the algo creating connections to central locations."""
+
+        self.city.create_central_connections(EDGE_TYPE)
+        self.assertTrue(add_mocked.called)

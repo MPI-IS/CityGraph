@@ -547,12 +547,12 @@ class TestEnergyBasedGraph(RandomTestCase):
 
     def test_energy_based_edge_builder(self):
         """Check the function adding edges based on the energy algorithm."""
-        self.top.add_energy_based_edges('EDGE_TYPE', rng=self.rng, num_sampling_steps=5)
+        self.top.add_energy_based_edges('EDGE_TYPE', 5, 10, 1.0, 1.0, lambda x, y: 1, self.rng)
 
     def test_central_edge_builder(self):
         """Checkd the function adding edges between central nodes."""
 
         # Connected graph required
-        self.top.add_energy_based_edges('EDGE_TYPE', rng=self.rng, num_sampling_steps=10)
+        self.top.add_energy_based_edges('EDGE_TYPE', 5, 10, 1.0, 1.0, lambda x, y: 1, self.rng)
 
         self.top.add_edges_between_centroids('EDGE_TYPE', num_centroids=5, rng=self.rng)

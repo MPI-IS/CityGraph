@@ -257,27 +257,44 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         edge_data = edge_data or []
         for attr in edge_data:
             try:
-                temp_gen = [self.get_edges(u, v, str(t))[0][attr]
-                            for u, v, t in zip(path, path[1:], data[EDGE_TYPE])]
-                data[attr] = np.array(temp_gen)
+                temp_list = [self.get_edges(u, v, str(t))[0][attr]
+                             for u, v, t in zip(path, path[1:], data[EDGE_TYPE])]
+                data[attr] = np.array(temp_list)
             except KeyError:
                 raise KeyError("Some nodes do not have the attribute '%s'." % attr)
 
         return (score, path, data)
 
-    def add_energy_based_edges(self, edge_type, degree_weight=1.0, distance_weight=1.0,
-                               num_sampling_steps=None, num_samples_per_step=10, rng=None):
+    def add_energy_based_edges(
+            self, edge_types, num_edges_per_step, max_iterations,
+            degree_energy_factor, distance_energy_factor, distance_func, rng):
         """
         This algorithm creates edges based on an energy sampling mechanism.
-        There are two knobs to turn:
-            1. distance_weight: larger value results in spatially closer nodes
-                being more likely to be connected.
-            2. degree_weight: larger value results in nodes with large degree
-                getting preferentially connected.
-        """
-        print("[Topology] Starting energy sampling algorithm to build edges.")
+        At each iteration, the total energy (degree energy + potential energy)
+        is calculated between all nodes and transformed into a Boltzmann distribution.
+        Edges are more likely to be created between nodes which are:
+            * close
+            * already connected to other nodes
+        A fixed number of random connections are then created based on this distribution,
+        masking previous connections and self-edges.
+        The process is repeated until either the maximum number of iterations is reached,
+        or all nodes have been connected at least once to another node.
 
-        rng = rng or RandomGenerator()
+        :param edge_types: Types of the edges to add.
+        :type edge_types: str or iterable
+        :param int num_edges_per_step: Number of edges to create at each step
+        :param int max_iterations: Maximum number of iterations.
+            If None, the algorithm stops when each node has been connected at least once.
+        :param float degree_energy_factor: Multiplier applied to the degree enery component
+            during the search for new edges (higher means more prominent).
+        :param float distance_energy_factor: Multiplier applied to the distance energy component
+            during the search for new edges (higher means more prominent).
+        :param func distance_func: Function to calculate distances between nodes.
+        :param rng: Random number generator.
+        :type rng: :py:class: `.RandomGenerator`
+        """
+
+        print("[Topology] Starting energy sampling algorithm to build edges.")
 
         # Step 1: prepare
         # Compute all distances: graph is undirected so we want all combinations with replacements
@@ -287,7 +304,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         distances = np.zeros(shape=array_shape)
         array_size = distances.size
         for (i, n1), (j, n2) in product(enumerate(self.nodes), repeat=2):
-            distances[i, j] = n1.distance_to(n2)
+            distances[i, j] = distance_func(n1, n2)
 
         # Normalize by maximum distance - save scaling factor as it will be needed
         max_distance = distances.max()
@@ -306,14 +323,17 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
             # Sampling step
             # a) compute the degree energies
-            edge_degrees = 1 / 2 * (
+            degree_energy = -1 / 2 * (
                 adjacency_matrix.sum(0, keepdims=True) +
                 adjacency_matrix.sum(1, keepdims=True)
             )
-            degree_energy = -degree_weight * edge_degrees
+            if degree_energy_factor:
+                degree_energy = degree_energy_factor * degree_energy
 
             # b) compute the distance energies
-            distance_energy = distance_weight * distances
+            distance_energy = distances
+            if distance_energy_factor:
+                distance_energy = distance_energy_factor * distances
 
             # c) compute edge sampling probability distribution
             total_energy = degree_energy + distance_energy
@@ -330,7 +350,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             # d) sample step
             # sample indices to activate
             sample_indices = rng.choice(
-                np.arange(array_size), size=(num_samples_per_step,),
+                np.arange(array_size), size=(num_edges_per_step,),
                 p=bolz_dist.ravel(), replace=True)
 
             # unravel indices - get a tuple
@@ -346,8 +366,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
             # Check termination
             # Maximum step number reached
-            if num_sampling_steps:
-                if step >= num_sampling_steps:
+            if max_iterations:
+                if step >= max_iterations:
                     termination = TerminationReason.MAX_ITER
             # All nodes are connected
             if adjacency_matrix.sum(0).min() > EPS_PRECISION:
@@ -369,18 +389,19 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         weight = "distance"
         old_num_edges = self.num_of_edges
         for n1, n2, i, j in pairs:
-            self.add_edge(n1, n2, edge_type, **{weight: distances[i, j]})
+            for edge_type in edge_types:
+                self.add_edge(n1, n2, edge_type, **{weight: distances[i, j]})
 
         # Inform that edges have been built
         print("[Topology] %i edges have been created" % (self.num_of_edges - old_num_edges))
 
-    def add_edges_between_centroids(self, edge_type, num_centroids=10, rng=None):
+    def add_edges_between_centroids(self, edge_type, num_centroids, rng):
         """
-        This algorithm creates edges between `central` nodes. These central nodes
+        This algorithm creates edges between central nodes. These central nodes
         are determined by a clustering algorithm (here the Fluid Communities algorithm)
         """
+
         print("[Topology] Starting building edges between central nodes.")
-        rng = rng or RandomGenerator()
 
         # Calculate clusters
         clusters = (list(c) for c in asyn_fluidc(
