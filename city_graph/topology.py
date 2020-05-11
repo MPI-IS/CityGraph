@@ -13,12 +13,8 @@ from networkx.algorithms.community.asyn_fluid import asyn_fluidc
 from networkx.exception import NetworkXNoPath
 import numpy as np
 
-from .types import TransportType
-from .utils import RandomGenerator
+from .utils import distance as utility_distance
 
-
-# Name used to hold the edge type
-EDGE_TYPE = 'type'
 
 # Precision for float comparisons
 EPS_PRECISION = 1e-6
@@ -55,20 +51,26 @@ class MultiEdgeUndirectedTopology(BaseTopology):
     :param iter edges: Edges in the graph
     """
 
+    # Names used to hold the node longitude and latitude
+    NODE_LONG = 'long'
+    NODE_LAT = 'lat'
+
+    # Name used to hold the edge type
+    EDGE_TYPE = 'type'
+
     def __init__(self, nodes=None, edges=None):
 
         self.graph = MultiGraph()
 
         # Nodes
-        # TODO: the `None` default value is just to not break things :)
-        if nodes:
-            for node in nodes:
-                self.add_node(node)
+        nodes = nodes or {}
+        for node_id, (lon, lat) in nodes.items():
+            self.add_node(node_id, lon, lat)
 
         # Edges
-        if edges:
-            for (n1, n2), (edge_type, dict_attrs) in edges.items():
-                self.add_edge(n1, n2, edge_type, **dict_attrs)
+        edges = edges or {}
+        for (n1, n2), (edge_type, dict_attrs) in edges.items():
+            self.add_edge(n1, n2, edge_type, **dict_attrs)
 
     @property
     def num_of_nodes(self):
@@ -85,21 +87,45 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         """The nodes in the graph."""
         return self.graph.nodes
 
-    def add_node(self, node_label, **node_attrs):
+    def add_node(self, node_id, longitude, latitude, **node_attrs):
         """Add a node defined by its label.
 
-        :param obj node_label: Node label. Must be hashable.
+        :param int node_id: Node id.
         :param dict node_attrs: Node attributes.
         """
-        self.graph.add_node(node_label, **node_attrs)
 
-    def get_node(self, node_label):
-        """Return node from its label."""
+        # Adding longitude and latitude to attributes
+        node_attrs[MultiEdgeUndirectedTopology.NODE_LONG] = longitude
+        node_attrs[MultiEdgeUndirectedTopology.NODE_LAT] = latitude
+        # Create node
+        self.graph.add_node(node_id, **node_attrs)
+
+    def get_node(self, node_id):
+        """Return node from its ID."""
 
         try:
-            return self.graph.nodes[node_label]
+            return self.graph.nodes[node_id]
         except KeyError:
-            raise KeyError("Node %s does not exist." % node_label)
+            raise KeyError("Node %s does not exist." % node_id)
+
+    def distance(self, n1, n2):
+        """
+        Calculate the distance between two nodes on the Earth.
+
+        :param int n1: ID of the first node.
+        :param int n2: ID of the second node.
+        :returns: Distance in cm
+        :rtype: float
+        """
+        n1 = self.get_node(n1)
+        n2 = self.get_node(n2)
+
+        return utility_distance(
+            n1[MultiEdgeUndirectedTopology.NODE_LONG],
+            n1[MultiEdgeUndirectedTopology.NODE_LAT],
+            n2[MultiEdgeUndirectedTopology.NODE_LONG],
+            n2[MultiEdgeUndirectedTopology.NODE_LAT]
+        )
 
     def add_edge(self, node1, node2, edge_type, **edge_attrs):
         """Add an edge between two nodes in the graph.
@@ -114,7 +140,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         _ = self.get_node(node2)
 
         # Adding type to attributes
-        edge_attrs[EDGE_TYPE] = edge_type
+        edge_attrs[MultiEdgeUndirectedTopology.EDGE_TYPE] = edge_type
+        # Create edge
         self.graph.add_edge(node1, node2, **edge_attrs)
 
     def get_edges(self, node1, node2, edge_types=None):
@@ -135,7 +162,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
         # Filter if necessary
         if edge_types:
-            edges = {e: v for e, v in edges.items() if edges[e][EDGE_TYPE] in edge_types}
+            edges = {e: v for e, v in edges.items()
+                     if edges[e][MultiEdgeUndirectedTopology.EDGE_TYPE] in edge_types}
 
         return edges
 
@@ -164,8 +192,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # Get all the weights but keep only those that are allowed
         # This will throw a KeyError is some edges do not have the weight specified
         try:
-            weights = [(attrs[EDGE_TYPE], attrs[weight]) for attrs in edges.values()
-                       if attrs[EDGE_TYPE] in allowed_types]
+            weights = [(attrs[MultiEdgeUndirectedTopology.EDGE_TYPE], attrs[weight]) for attrs in edges.values()
+                       if attrs[MultiEdgeUndirectedTopology.EDGE_TYPE] in allowed_types]
         except KeyError:
             raise KeyError(
                 "No edge with attribute %s found between nodes %s and %s" % (
@@ -191,8 +219,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :param obj node1: Label of the first node.
         :param obj node2: Label of the second node.
         :param str criterion: Criterion used to find shortest path. Must be an edge attribute.
-        :param allowed_types: Edge type(s) allowed to build path.
-        :type allowed_types: iter(str) or dict-like object with TranpsortType as keys.
+        :param dict allowed_types: Edge type(s) allowed to build path.
+            The keys are the edge types, the values (if any) indicate the preference for each type.
         :param iter(str) edge_data: Edge attributes for which data along the path is requested.
         :returns: A 3-tuple containing in this order
 
@@ -213,16 +241,6 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         for node in node1, node2:
             if not self.graph.has_node(node):
                 raise ValueError("Node %s does not exist." % node)
-
-        # If allowed_types is not a dict, the allowed_types are either:
-        #   * a string
-        #   * an iterable
-        # and we need to build the dictionnary
-        if not isinstance(allowed_types, dict):
-            if isinstance(allowed_types, TransportType):
-                allowed_types = {allowed_types: None}
-            else:
-                allowed_types = {k: None for k in allowed_types}
 
         # Using partial function to pass the edge types
         # The weight_func will be called for each edge on the graph
@@ -253,14 +271,15 @@ class MultiEdgeUndirectedTopology(BaseTopology):
                 edge_types.append(best_types[(u, v)])
             except KeyError:
                 edge_types.append(best_types[(v, u)])
-        data[EDGE_TYPE] = np.array(edge_types)
+        data[MultiEdgeUndirectedTopology.EDGE_TYPE] = np.array(edge_types)
 
         # Additional data if needed
         edge_data = edge_data or []
         for attr in edge_data:
             try:
                 temp_list = [self.get_edges(u, v, [t])[0][attr]
-                             for u, v, t in zip(path, path[1:], data[EDGE_TYPE])]
+                             for u, v, t in zip(
+                                 path, path[1:], data[MultiEdgeUndirectedTopology.EDGE_TYPE])]
                 data[attr] = np.array(temp_list)
             except KeyError:
                 raise KeyError("Some nodes do not have the attribute '%s'." % attr)
@@ -269,7 +288,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
     def add_energy_based_edges(
             self, edge_types, num_edges_per_step, max_iterations,
-            degree_energy_factor, distance_energy_factor, distance_func, rng):
+            degree_energy_factor, distance_energy_factor, rng):
         """
         This algorithm creates edges based on an energy sampling mechanism.
         At each iteration, the total energy (degree energy + potential energy)
@@ -282,8 +301,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         The process is repeated until either the maximum number of iterations is reached,
         or all nodes have been connected at least once to another node.
 
-        :param edge_types: Types of the edges to add.
-        :type edge_types: str or iterable
+        :param iter edge_types: Types of the edges to add.
         :param int num_edges_per_step: Number of edges to create at each step
         :param int max_iterations: Maximum number of iterations.
             If None, the algorithm stops when each node has been connected at least once.
@@ -291,7 +309,6 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             during the search for new edges (higher means more prominent).
         :param float distance_energy_factor: Multiplier applied to the distance energy component
             during the search for new edges (higher means more prominent).
-        :param func distance_func: Function to calculate distances between nodes.
         :param rng: Random number generator.
         :type rng: :py:class: `.RandomGenerator`
         """
@@ -306,7 +323,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         distances = np.zeros(shape=array_shape)
         array_size = distances.size
         for (i, n1), (j, n2) in product(enumerate(self.nodes), repeat=2):
-            distances[i, j] = distance_func(n1, n2)
+            distances[i, j] = self.distance(n1, n2)
 
         # Normalize by maximum distance - save scaling factor as it will be needed
         max_distance = distances.max()
@@ -397,17 +414,22 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # Inform that edges have been built
         print("[Topology] %i edges have been created" % (self.num_of_edges - old_num_edges))
 
-    def add_edges_between_centroids(self, edge_type, num_centroids, rng):
+    def add_edges_between_centroids(self, edge_types, num_centroids, rng):
         """
         This algorithm creates edges between central nodes. These central nodes
-        are determined by a clustering algorithm (here the Fluid Communities algorithm)
+        are determined by a clustering algorithm (here the Fluid Communities algorithm).
+
+        :param iter edge_types: Types of the edges to add.
+        :param int num_centroids: Number of centroids.
+        :param rng: Random number generator.
+        :type rng: :py:class: `.RandomGenerator`
         """
 
         print("[Topology] Starting building edges between central nodes.")
 
         # Calculate clusters
         clusters = (list(c) for c in asyn_fluidc(
-            self.graph, k=num_centroids, seed=rng.rand_int(RandomGenerator.MAX_SEED)))
+            self.graph, k=num_centroids, seed=rng.rand_int()))
 
         # Extract centroids
         centroids = [c[int(np.argmax([self.graph.degree[n] for n in c]))] for c in clusters]
@@ -419,7 +441,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # TODO: attributes should be passed to the function
         weight = "distance"
         for n1, n2 in combinations(centroids, 2):
-            tmp_graph.add_edge(n1, n2, **{weight: n1.distance_to(n2)})
+            tmp_graph.add_edge(n1, n2, **{weight: self.distance(n1, n2)})
 
         # Calculate subgraph with the minimum sum of edge weights
         subgraph = minimum_spanning_tree(tmp_graph, weight=weight)
@@ -427,7 +449,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # Build edges
         # Here we can reuse the previously calculated distances
         for (n1, n2) in subgraph.edges:
-            self.add_edge(n1, n2, edge_type, **subgraph[n1][n2])
+            for edge_type in edge_types:
+                self.add_edge(n1, n2, edge_type, **subgraph[n1][n2])
 
         # Inform that edges have been built
         print("[Topology] %i edges have been created" % len(subgraph.edges))

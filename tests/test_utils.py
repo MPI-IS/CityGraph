@@ -1,6 +1,8 @@
+from math import pi
 from time import sleep
 
-from city_graph.utils import RandomGenerator, get_current_time_in_ms
+from city_graph.utils import RandomGenerator, \
+    get_current_time_in_ms, distance, EARTH_RADIUS_CM
 
 from .fixtures import RandomTestCase
 
@@ -19,6 +21,32 @@ class TestUtilities(RandomTestCase):
         # Check that the times are ordered and different
         for i in range(num_times - 1):
             self.assertLess(times[i], times[i + 1])
+
+    def test_distance(self):
+        """Checks the distance function."""
+
+        # Reference point on the equator and opposite point
+        _, p0x, p0y = self.create_node(self.rng.randint(360), 0)
+        _, p1x, p1y = self.create_node(p0x + 180, 0)
+
+        # North and South poles
+        _, pNx, pNy = self.create_node(self.rng.randint(360), 90)
+        _, pSx, pSy = self.create_node(self.rng.randint(360), -90)
+
+        self.assertAlmostEqual(distance(p0x, p0y, p0x, p0y), 0)
+        # Precision to the cm
+        self.assertAlmostEqual(distance(p0x, p0y, pNx, pNy),
+                               pi * EARTH_RADIUS_CM / 2,
+                               places=0)
+        self.assertAlmostEqual(distance(p0x, p0y, pSx, pSy),
+                               pi * EARTH_RADIUS_CM / 2,
+                               places=0)
+        self.assertAlmostEqual(distance(pNx, pNy, pSx, pSy),
+                               pi * EARTH_RADIUS_CM,
+                               places=0)
+        self.assertAlmostEqual(distance(p0x, p0y, p1x, p1y),
+                               pi * EARTH_RADIUS_CM,
+                               places=0)
 
 
 class TestRandomGenerator(RandomTestCase):

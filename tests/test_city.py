@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from city_graph.city import City
 from city_graph.planning import Plan, PlanStep
-from city_graph.topology import EDGE_TYPE, MultiEdgeUndirectedTopology
+from city_graph.topology import MultiEdgeUndirectedTopology
 from city_graph.types import LocationType, Location, \
     Preferences, TransportType, PathCriterion
 
@@ -13,6 +13,9 @@ from .fixtures import RandomTestCase
 # see method : test_parallelism
 SLEEP_TIME = 0.001
 TOTAL_TIME_CHECK = 2.0
+
+# Some shorter names
+EDGE_TYPE = MultiEdgeUndirectedTopology.EDGE_TYPE
 
 
 class TestCity(RandomTestCase):
@@ -127,15 +130,11 @@ class TestCity(RandomTestCase):
     def test_default_constructor(self):
         """Check the default constructor."""
 
-        city = City(self.city_name, rng=self.rng)
+        city = City(self.city_name, self.locations, None)
         self.assertEqual(city.name, self.city_name)
-        self.assertIs(city.rng, self.rng)
 
-        for att in ['_pool', '_plans', '_plan_id']:
+        for att in ['_pool', '_plans', '_plan_id', '_topology', '_locations_manager']:
             self.assertTrue(hasattr(city, att))
-
-        for att in ['_topology', '_locations_manager']:
-            self.assertFalse(hasattr(city, att))
             self.assertTrue(hasattr(self.city, att))
 
     @patch.object(City, 'create_connections_by_energy')

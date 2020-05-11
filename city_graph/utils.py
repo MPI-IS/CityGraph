@@ -7,7 +7,11 @@ Module with different utilities needed for the package.
 import string
 import time
 
+from math import sin, cos, sqrt, atan2, radians
 from numpy.random import RandomState
+
+# Mean Earth radius in cm.
+EARTH_RADIUS_CM = 6371. * 1e5
 
 
 def get_current_time_in_ms():
@@ -17,6 +21,34 @@ def get_current_time_in_ms():
     :note: Used for seeding the pseudo random number generator.
     """
     return int(time.time() * 1000)
+
+
+def distance(long1, lat1, long2, lat2):
+    """
+    Calculate the distance between two points on the Earth.
+
+    :param float long1: longitude of the first point in degrees.
+    :param float lat1: latitude of the first point in degrees.
+    :param float long2: longitude of the second point in degrees.
+    :param float lat2: latitude of the second point in degrees.
+    :returns: distance in cm.
+    :rtype: float
+
+    :note: We approximate the Earth as a sphere and use the Haversine formula.
+    """
+
+    # Convert to radians
+    long1 = radians(long1)
+    lat1 = radians(lat1)
+    long2 = radians(long2)
+    lat2 = radians(lat2)
+
+    delta_long = long1 - long2
+    delta_lat = lat1 - lat2
+
+    a = sin(delta_lat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(delta_long / 2) ** 2
+    d = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return d * EARTH_RADIUS_CM
 
 
 class RandomGenerator(RandomState):
@@ -50,7 +82,7 @@ class RandomGenerator(RandomState):
         """Returns a random float in [0.0, 1.0)."""
         return self.random_sample()
 
-    def rand_int(self, max_value):
+    def rand_int(self, max_value=MAX_SEED):
         """
         Returns a random integer in [0, max_value).
 
