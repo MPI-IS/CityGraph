@@ -13,6 +13,7 @@ from networkx.algorithms.community.asyn_fluid import asyn_fluidc
 from networkx.exception import NetworkXNoPath
 import numpy as np
 
+from .types import TransportType
 from .utils import RandomGenerator
 
 
@@ -135,6 +136,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # Filter if necessary
         if edge_types:
             edges = {e: v for e, v in edges.items() if edges[e][EDGE_TYPE] in edge_types}
+
         return edges
 
     def _get_min_weight(self, weight, allowed_types, best_types, node1, node2, _d):
@@ -143,7 +145,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
         :param str weight: Weight name.
         :param allowed_types: Edge type(s) allowed to build path.
-        :type allowed_types: dict-like object with strings as keys.
+        :type allowed_types: dict-like object with TransportType as keys.
         :param dict best_types: dictionnary containing the best type for each pair of nodes.
 
         :note: other arguments are the ones needed by the NetworkX API.
@@ -190,7 +192,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :param obj node2: Label of the second node.
         :param str criterion: Criterion used to find shortest path. Must be an edge attribute.
         :param allowed_types: Edge type(s) allowed to build path.
-        :type allowed_types: iter(str) or dict-like object with strings as keys.
+        :type allowed_types: iter(str) or dict-like object with TranpsortType as keys.
         :param iter(str) edge_data: Edge attributes for which data along the path is requested.
         :returns: A 3-tuple containing in this order
 
@@ -217,7 +219,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         #   * an iterable
         # and we need to build the dictionnary
         if not isinstance(allowed_types, dict):
-            if isinstance(allowed_types, str):
+            if isinstance(allowed_types, TransportType):
                 allowed_types = {allowed_types: None}
             else:
                 allowed_types = {k: None for k in allowed_types}
@@ -257,7 +259,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         edge_data = edge_data or []
         for attr in edge_data:
             try:
-                temp_list = [self.get_edges(u, v, str(t))[0][attr]
+                temp_list = [self.get_edges(u, v, [t])[0][attr]
                              for u, v, t in zip(path, path[1:], data[EDGE_TYPE])]
                 data[attr] = np.array(temp_list)
             except KeyError:

@@ -1,24 +1,30 @@
 from collections import UserDict
-from enum import Enum
+from enum import Enum, unique
 from shapely.geometry import Point
 
 
-class TransportType(str, Enum):
-    """Type of transport."""
+@unique
+class TransportType(Enum):
+    """
+    Type of transport.
+    """
 
-    ROAD = "road"
-    BIKE = "bike"
-    WALK = "walk"
+    ROAD = 0
+    BIKE = 1
+    WALK = 2
 
-    BUS = "bus"
-    TROLLEYBUS = "trolleybus"
-    FERRY = "ferry"
-    TRAIN = "train"
-    TRAM = "tram"
+    BUS = 3
+    TROLLEYBUS = 4
+    FERRY = 5
+    TRAIN = 6
+    TRAM = 7
 
 
+@unique
 class MobilityType(tuple, Enum):
-    """Type of human mobility."""
+    """
+    Type of human mobility.
+    """
 
     PUBLIC_TRANSPORT = (
         TransportType.WALK,
@@ -47,52 +53,52 @@ class LocationType(str, Enum):
 
     # Sustenance section: reduced down to two types depending on
     # whether you want to eat or to drink.
-    BAR = "bar"
-    RESTAURANT = "restaurant"
+    BAR = 0
+    RESTAURANT = 1
 
     # Education section: reduced down to three types based on the age
     # bracket of the student. Colleges are treated as schools.
-    KINDERGARDEN = "kindergarden"
-    SCHOOL = "school"
-    UNIVERSITY = "university"
+    KINDERGARDEN = 2
+    SCHOOL = 3
+    UNIVERSITY = 4
 
     # Transportation section: only interested in stations and parking
     # lots.
-    PUBLIC_TRANSPORT_STATION = "public_transport_station"
-    PARKING = "parking"
+    PUBLIC_TRANSPORT_STATION = 5
+    PARKING = 6
 
     # Financial section: ignored. Banks will be classified as offices.
 
     # Healthcare: hospitals, doctors and pharmacies. The first two is
     # where the sick people might go (and stay in case of hospital).
-    HOSPITAL = "hospital"
-    DOCTOR = "doctor"
-    PHARMACY = "pharmacy"
+    HOSPITAL = 7
+    DOCTOR = 8
+    PHARMACY = 9
 
     # Entertainment, Arts & Culture: reducing to gambling, theater
     # (including cinema) and social centre (including community
     # center). Sorry to all the stripclubs, brothels and swinger clubs
     # out there.
-    GAMBLING = "gambling"
-    NIGHTCLUB = "nightclub"
-    THEATER = "theater"
-    SOCIAL_CENTRE = "social_centre"  # spelling from OSM
+    GAMBLING = 10
+    NIGHTCLUB = 11
+    THEATER = 12
+    SOCIAL_CENTRE = 13  # spelling from OSM
 
     # Leisure:
-    BEACH = "beach"
-    SPORTS_CENTRE = "sports_centre"
-    PARK = "park"
-    STADIUM = "stadium"
+    BEACH = 14
+    SPORTS_CENTRE = 15
+    PARK = 16
+    STADIUM = 17
 
     # Building: everything livable is (including a cabin and a static
     # caravan) is a household, everything religious is a church.
-    HOUSEHOLD = "household"
+    HOUSEHOLD = 18
 
-    OFFICE = "office"
-    RETAIL = "retail"  # for non-essentials
-    SUPERMARKET = "supermarket"
+    OFFICE = 19
+    RETAIL = 20  # for non-essentials
+    SUPERMARKET = 21
 
-    CHURCH = "church"
+    CHURCH = 22
 
 
 class BaseEnumMapping(UserDict):
@@ -148,6 +154,7 @@ class LocationDistribution(BaseEnumMapping):
         super().__init__(LocationType, **kwargs)
 
 
+@unique
 class PathCriterion(str, Enum):
     """
     Shortest path between two locations can be computed based on either
@@ -174,7 +181,7 @@ class Preferences:
                  mobility=None,
                  data=None):
 
-        if criterion not in PathCriterion:
+        if criterion not in list(PathCriterion):
             message = str(criterion) + ": "
             message += "Unknown criterion, use a member of the PathCriterion enum:\n\t- "
             message += '\n\t- '.join(t.__str__() for t in PathCriterion)
@@ -232,7 +239,7 @@ class Location:
     :param node: id of a node in a graph (optional)
     """
 
-    _id_count = 0
+    __id_count = 0
 
     # TODO: class not tested
     def __init__(self, location_type, coordinates, name=None, node=None):
@@ -256,12 +263,15 @@ class Location:
         self.node = node
 
     def __str__(self):
-        return str(self.location_id) + " | " + self.name + " (" + self._location_type + ")"
+        return (
+            str(self.location_id) + " | " +
+            (self.name if self.name else "<nameless>") +
+            " (" + self._location_type.name + ")")
 
     @classmethod
     def _get_id(cls):
-        cls._id_count += 1
-        return cls._id_count
+        cls.__id_count += 1
+        return cls.__id_count
 
     @property
     def location_id(self):
@@ -282,11 +292,6 @@ class Location:
     @property
     def location_type(self):
         return self._location_type
-
-    @classmethod
-    def _get_id(cls):
-        cls._id_count += 1
-        return cls._id_count
 
     def distance(self, other):
         """

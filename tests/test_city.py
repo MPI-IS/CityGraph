@@ -83,7 +83,7 @@ class TestCity(RandomTestCase):
             distances.append(distance)
             durations.append(duration)
             self.connections[(loc1, loc2)] = (
-                mode.value,
+                mode,
                 {'distance': distance, 'duration': duration}
             )
             # creating the expected (ground truth) plan

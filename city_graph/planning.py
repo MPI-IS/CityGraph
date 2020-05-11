@@ -152,8 +152,10 @@ def get_plan(topology,
         #       its keys
         # We need to take the nodes here
         score, path, data = topology.get_shortest_path(
-            start_location.node, target_location.node, preferences.criterion.value, [
-                m.value for m in preferences.mobility.keys()], preferences.data)
+            start_location.node, target_location.node,
+            preferences.criterion.value,
+            list(preferences.mobility.keys()),
+            preferences.data)
     except RuntimeError as error:
         # No Plan found, returning an invalid Plan
         # (an empty Plan is invalid, i.e. plan.is_valid())
