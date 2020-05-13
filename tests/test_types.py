@@ -13,22 +13,22 @@ class TypesTestCase(unittest.TestCase):
                    "train": 0.2}
 
         preferences = types.Preferences(mobility=weights)
-        self.assertTrue(math.isclose(preferences.mobility["walk"],
-                                     weights["train"],
-                                     rel_tol=1e-5))
-        self.assertTrue(math.isclose(preferences.mobility["train"],
-                                     weights["walk"],
-                                     rel_tol=1e-5))
+        self.assertAlmostEqual(preferences.mobility["walk"],
+                               weights["train"],
+                               5)
+        self.assertAlmostEqual(preferences.mobility["train"],
+                               weights["walk"],
+                               5)
 
         weights = {"walk": 0.6,
                    "train": 0.4}
         preferences.mobility = weights
-        self.assertTrue(math.isclose(preferences.mobility["walk"],
-                                     weights["train"],
-                                     rel_tol=1e-5))
-        self.assertTrue(math.isclose(preferences.mobility["train"],
-                                     weights["walk"],
-                                     rel_tol=1e-5))
+        self.assertAlmostEqual(preferences.mobility["walk"],
+                               weights["train"],
+                               5)
+        self.assertAlmostEqual(preferences.mobility["train"],
+                               weights["walk"],
+                               5)
 
     def test_criterion_preferences(self):
         """Checks on criterion being properly set and checked"""

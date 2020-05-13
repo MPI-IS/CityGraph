@@ -7,7 +7,11 @@ Module with different utilities needed for the package.
 import string
 import time
 
+from math import sin, cos, sqrt, atan2, radians
 from numpy.random import RandomState
+
+# Mean Earth radius in cm.
+EARTH_RADIUS_CM = 6371. * 1e5
 
 
 def get_current_time_in_ms():
@@ -19,7 +23,35 @@ def get_current_time_in_ms():
     return int(time.time() * 1000)
 
 
-class RandomGenerator:
+def distance(long1, lat1, long2, lat2):
+    """
+    Calculate the distance between two points on the Earth.
+
+    :param float long1: longitude of the first point in degrees.
+    :param float lat1: latitude of the first point in degrees.
+    :param float long2: longitude of the second point in degrees.
+    :param float lat2: latitude of the second point in degrees.
+    :returns: distance in cm.
+    :rtype: float
+
+    :note: We approximate the Earth as a sphere and use the Haversine formula.
+    """
+
+    # Convert to radians
+    long1 = radians(long1)
+    lat1 = radians(lat1)
+    long2 = radians(long2)
+    lat2 = radians(lat2)
+
+    delta_long = long1 - long2
+    delta_lat = lat1 - lat2
+
+    a = sin(delta_lat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(delta_long / 2) ** 2
+    d = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return d * EARTH_RADIUS_CM
+
+
+class RandomGenerator(RandomState):
     """
     Pseudo-random number generator based on the MT19937.
     Used for the tests and generating random data.
@@ -34,19 +66,23 @@ class RandomGenerator:
 
         seed = seed or get_current_time_in_ms()
         self._seed = seed % self.MAX_SEED
-
-        self._rng = RandomState(self._seed)
+        super().__init__(self._seed)
 
     @property
-    def seed(self):
-        """Returns the seed (read-only)."""
+    def rng_seed(self):
+        """Returns seed."""
         return self._seed
+
+    def seed(self, _seed):
+        """"Reseed the generator."""
+        self._seed = _seed
+        super().seed(self.rng_seed)
 
     def __call__(self):
         """Returns a random float in [0.0, 1.0)."""
-        return self._rng.random_sample()
+        return self.random_sample()
 
-    def randint(self, max_value):
+    def rand_int(self, max_value=MAX_SEED):
         """
         Returns a random integer in [0, max_value).
 
@@ -54,47 +90,12 @@ class RandomGenerator:
         """
         if max_value < 1:
             raise ValueError("Maximum value should be at least 1, instead got %s" % max_value)
-        return int(self.__call__() * max_value)
+        return super().randint(0, max_value)
 
-    def randstr(self, length=None):
+    def rand_str(self, length=None):
         """Returns a random string."""
 
         length = length or (5 + self.randint(60))
         characters = string.ascii_letters + string.digits
         size = len(characters)
         return ''.join(characters[self.randint(size)] for _ in range(length))
-
-    def choice(self, seq):
-        """
-        Returns a random element from the non-empty sequence.
-
-        :param iterable seq: Sequence
-
-        raises: IndexError if the sequence is empty.
-        """
-        length = len(seq)
-        if not length:
-            raise IndexError("Sequence is empty.")
-        return seq[self.randint(length)]
-
-    def sample(self, seq, k):
-        """
-        Returns a k-lengthed list of unique elements chosen from the population sequence.
-        Used for random sampling without replacement.
-
-        :param iterable seq: Population sequence
-        :param int k: Sample size
-
-        raises: ValueError if the sample size is larger than the population size.
-        """
-        length = len(seq)
-        if k > length:
-            raise ValueError('Sample size larger than population size (%s > %s).'
-                             % (k, length))
-        # Copy sequence
-        data = list(seq)
-        results = []
-        for _ in range(k):
-            results.append(data.pop(self.randint(length)))
-            length -= 1
-        return results

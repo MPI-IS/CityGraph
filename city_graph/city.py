@@ -1,62 +1,115 @@
+from itertools import combinations_with_replacement
 import multiprocessing
-from addict import Dict
 
-from . import planning
-from .types import LocationType
-
-# helper class that manages distances between locations.
-# will be used as attribute of class City.
+from .planning import get_plan, Plan
+from .topology import MultiEdgeUndirectedTopology
+from .types import LocationType, Location, TransportType
+from .utils import RandomGenerator, distance
 
 
 class LocationManager:
+    """
+    Helper class that manages locations.
 
-    __slots__ = ("_distances", "_locations", "_type_locations")
+    :param iter locations: Locations
+    :param func fdistance: Function used to calculate distances
+    """
 
-    def __init__(self, locations):
+    __slots__ = ("_distances", "_locations", "_func_distance", "_locations_by_node")
+
+    def __init__(self, locations, fdistance=distance):
+
+        # Function used to calculate distances
+        self._func_distance = fdistance
+
         # saving all distances computation, so they not done twice
-        self._distances = Dict()
-        self._locations = locations
-        # also saving dict {location types: locations}, also
-        # for saving computation later on
-        self._type_locations = {l.location_type: [] for l in locations}
-        for location in self._locations:
-            self._type_locations[location.location_type].append(location)
+        self._distances = {}
 
-    # return all known location types
+        # mapping between nodes and locations
+        self._locations_by_node = {}
+
+        # Save locations by type
+        self._locations = {}
+        for loc in locations:
+
+            # Save location by node
+            try:
+                self._locations_by_node[loc.node].append(loc)
+            except KeyError:
+                self._locations_by_node[loc.node] = [loc]
+
+            # Save location by type
+            try:
+                self._locations[loc.location_type].append(loc)
+            except KeyError:
+                self._locations[loc.location_type] = [loc]
+
     @property
-    def type_locations(self):
-        return self._type_locations
+    def location_types(self):
+        """Returns all location types."""
+        return list(self._locations)
 
     # return {location_type:[locations]}
-    def get_locations_by_types(self, location_types):
-        return {type_: self.type_locations[type_]
-                for type_ in location_types
-                if type_ in self.type_locations}
+    def get_locations(self, location_types=None):
+        """
+        Returns the locations.
+
+        :param location_types: location types requested
+        :type location_types: str or iter(str)
+        :returns: Locations matching the types
+        :rtype: list or dict
+        """
+
+        location_types = location_types or self.location_types
+        if isinstance(location_types, str):
+            return self._get_locations(location_types)
+        # Otherwise return dict
+        return {type_: self._get_locations(type_)
+                for type_ in location_types}
 
     # return list of locations of specified type
-    def get_locations(self, location_type):
+    def _get_locations(self, location_type):
         try:
-            return self.type_locations[location_type]
+            return self._locations[location_type]
         except KeyError:
+            # TODO Replace by logger
+            print("No location of type %s" % location_type)
             return []
 
-    # returns {location:{location:distance}}
+    # returns {(l1,l2):location:distance}}
     def get_all_distances(self):
         return self._distances
 
-    # returns distance between l1 and l2,
-    # by either retrieving it from _distances
-    # (if previously computed) or by computing
-    # it (and then saving it in _distances)
-    # TODO: use lru_cache here?
-    def get_distances(self, l1, l2):
-        d = self._distances[l1][l2]
-        if isinstance(d, float) or len(d) > 0:
+    def get_distance(self, l1, l2):
+        """
+        Returns the distance between l1 and l2 by either
+            * retrieving it from the _distances attributes(if previously computed)
+            * by computing it (and then saving it in _distances)
+        : todo: lru_cache here?
+        """
+        try:
+            return self._get_distance(l1, l2)
+        except KeyError:
+            d = self._func_distance(l1, l2)
+            self._distances[(l1, l2)] = d
             return d
-        d = l1.distance(l2)
-        self._distances[l1][l2] = d
-        self._distances[l2][l1] = d
-        return d
+
+    def _get_distance(self, l1, l2):
+        """Try to get the distance between two locations by flipping them."""
+        try:
+            return self._distances[(l1, l2)]
+        except KeyError:
+            return self._distances[(l2, l1)]
+
+    # fills _distances will all distances values, so no distance
+    # will ever need to be computed again.
+    # TODO: JC I do not think this is needed
+    def compute_all_distances(self):
+        """Calculate and save all distances."""
+
+        # Itertools is so cool!
+        for l1, l2 in combinations_with_replacement(sum(self._locations.values(), []), 2):
+            self.get_distance(l1, l2)
 
     # returns the location of one of the specified type
     # closest to location
@@ -90,47 +143,195 @@ class LocationManager:
                 # there is only one entry in the list, so location itself
                 return None
         return sorted(locations,
-                      key=lambda l: self.get_distances(l, location))[index]
-
-    # fills _distances will all distances values, so no distance
-    # will ever need to be computed again.
-    def compute_all_distances(self):
-        for index, l1 in enumerate(self._locations):
-            for l2 in self._locations[index + 1:]:
-                d = l1.distance(l2)
-                self._distances[l1][l2] = d
-                self._distances[l2][l1] = d
+                      key=lambda l: self.get_distance(l, location))[index]
 
 
 class City:
     """
-    User-end interface for querying a city
+    Class for representing a city.
 
     :param str name: name of the city
-    :param topology: topology of the city
-    :param int nb_processes: number of processes to use (when computing shortest paths)
+    :param rng: Random number generator.
+    :type rng: :py:class: `.RandomGenerator`
+    :param int nb_processes: number of processes to use(when computing shortest paths)
     """
 
-    __slots__ = ("_name", "_topology", "_pool", "_nb_processes",
+    __slots__ = ("name", "_topology", "_pool", "_nb_processes",
                  "_plans", "_plan_id", "_locations_manager")
 
     def __init__(self, name, locations, topology, nb_processes=1):
-        # arbitrary name provided by the user
-        self._name = name
-        # topology object, allows to generate plan to go from
-        # one location to the other
+
+        self.name = name
+
+        # Create the LocationManager
+        self._locations_manager = LocationManager(locations)
+
+        # Topology
         self._topology = topology
-        # number of processes spawn for plan generation
-        self._nb_processes = nb_processes
+
         # pool of processes in charge of computing plans
+        self._nb_processes = nb_processes
         self._pool = multiprocessing.Pool(processes=nb_processes)
+
         # key: plan_id, value: result(future) of the plan,
         # as provided by the process in charge of computing the plan
         self._plans = {}
+
         # used for attributing a unique new id to each plan
         self._plan_id = 0
-        # used to order the locations
-        self._locations_manager = LocationManager(locations)
+
+    @classmethod
+    def build_from_data(cls, name, locations, connections=None, rng=None,
+                        create_network=True, **kwargs):
+        """
+        Creates a city with locations and connections provided as input.
+
+        :param str name: name of the city
+        :param iter locations: locations
+        :param dict connections: connections between a pair of locations (key).
+            The value is a 2-tuple containing:
+                * the connection type
+                * a dictionary for the extra attributes of the connection
+        :param rng: Random number generator.
+        :type rng: :py:class: `.RandomGenerator`
+        :param int create_network: Whether to run create connections using the energy algorithm
+        :param dict **kwargs: Additional kwargs to pass to the energy algorithm
+
+        :note: The location coordinates (longitude and latitude)
+            should be accessible through its attributes ``x`` and ``y``.
+        """
+        rng = rng or RandomGenerator()
+
+        # Assign node IDs if necessary
+        locations = list(locations)
+        for i, loc in enumerate(locations):
+            if not loc.node:
+                loc.node = i
+
+        # All locations should have a node now
+        assert all([hasattr(loc, 'node') for loc in locations])
+
+        # Create the Topology
+        nodes = {l.node: (l.x, l.y) for l in locations}
+        edges = None
+        # if connections are provided, we need to specify the edges
+        if connections:
+            edges = {(l1.node, l2.node): d for (l1, l2), d in connections.items()}
+        topology = MultiEdgeUndirectedTopology(nodes, edges)
+
+        # Default constructor
+        city = cls(name, locations, topology)
+
+        # Call energy algorithm if necessary
+        if create_network:
+            city.create_connections_by_energy(**kwargs)
+        return city
+
+    @classmethod
+    def build_random(cls, name, distribution, x_lim=(0, 360), y_lim=(-90, 90), rng=None,
+                     location_cls=Location, create_network=True, **kwargs):
+        """
+        Creates a city with random locations and connections.
+
+        :param str name: name of the city.
+        :param distribution: the wanted number of locations (values) of a given type (key).
+        :type distribution: dict-like object
+            (e.g. :py:class: `city_graph.types.LocationDistribution`)
+        :param tuple x_lim: Coordinates range on the x-axis.
+        :param tuple y_lim: Coordinates range on the y-axis.
+        :param rng: Random number generator.
+        :type rng: :py:class: `.RandomGenerator`
+        :param cls location_cls: class used for representing a location.
+        :param int create_network: whether to run create connections using the energy algorithm.
+        :param dict **kwargs: additional kwargs to pass to the energy algorithm.
+
+        :note: The `location_cls` default constructor must accept as input arguments:
+            * a location type
+            * a 2-tuple of random values between ``x_lim`` and ``y_lim``
+        :note: The location coordinates (longitude and latitude)
+            should be accessible through its attributes ``x`` and ``y``.
+        """
+        rng = rng or RandomGenerator()
+
+        # One element (the type) for each location in a flattened list
+        types_list = ([k] * v for k, v in distribution.items() if v > 0)
+        types_list = (t for sublist in types_list for t in sublist)
+
+        # Create random locations
+        locations = (
+            location_cls(t, (rng.uniform(*x_lim), rng.uniform(*y_lim)))
+            for t in types_list
+        )
+
+        # Call builder
+        city = cls.build_from_data(name, locations, rng=rng,
+                                   create_network=create_network, **kwargs)
+        return city
+
+    def create_connections_by_energy(
+            self, connection_types=(TransportType.ROAD, TransportType.WALK),
+            connections_per_step=10, max_iterations=None,
+            degree_factor=None, distance_factor=None, rng=None):
+        """
+        Create random connections of given types using an energy sampling mechanism.
+        At each iteration, a number of new random connections are created
+            based on the degree and the distance between locations.
+        Locations are more likely to be connected if
+            * they are close
+            * they are already connected to other locations
+
+        :param connection_types: Types of the connections to add.
+        :type connection_types: str or iterable
+        :param int connections_per_step: Number of new connections created at each step.
+        :param int max_iterations: Maximum number of iterations.
+            If None, the algorithm stops when each location has been connected at least once.
+        :param float degree_factor: Multiplier applied to the degree enery component
+            during the search for new connections (higher means more prominent).
+        :param float distance_factor: Multiplier applied to the distance energy component
+            during the search for new connections (higher means more prominent).
+        :param rng: Random number generator.
+        :type rng: :py:class: `.RandomGenerator`
+        """
+        rng = rng or RandomGenerator()
+
+        # Normalize the factors if necessary
+        if degree_factor and distance_factor:
+            sum_factors = degree_factor + distance_factor
+            degree_factor /= sum_factors
+            distance_factor /= sum_factors
+
+        # Make edge_types iterable if it is not
+        if not isinstance(connection_types, list):
+            connection_types = list(connection_types)
+
+        # Check configuration for running the algorithm
+        if connections_per_step < 1:
+            raise RuntimeError("Samples must have a minimum size of 1.")
+
+        # Run algorithm
+        self._topology.add_energy_based_edges(
+            connection_types, connections_per_step, max_iterations,
+            degree_factor, distance_factor, rng)
+
+    def create_central_connections(self, connection_types, num_central_locations=10, rng=None):
+        """
+        Create random connections of given types between central locations.
+        These central locations are determined by a clustering algorithm.
+
+        :param connection_types: Types of the connections to add.
+        :type connection_types: str or iterable
+        :param int num_central_locations: Number of requested central locations.
+        :param rng: Random number generator.
+        :type rng: :py:class: `.RandomGenerator`
+        """
+        rng = rng or RandomGenerator()
+
+        # Make edge_types iterable if it is not
+        if not isinstance(connection_types, list):
+            connection_types = list(connection_types)
+
+        # Run algorithm
+        self._topology.add_edges_between_centroids(connection_types, num_central_locations, rng)
 
     def __getstate__(self):
         # this is used to inform pickle which attributes should
@@ -150,11 +351,6 @@ class City:
             setattr(self, attr, value)
         self._pool = multiprocessing.Pool(processes=self._nb_processes)
 
-    @property
-    def name(self):
-        """Returns the name of the city."""
-        return self._name
-
     def _next_plan_id(self):
         # attributing an id to each new plan
         self._plan_id += 1
@@ -165,10 +361,10 @@ class City:
         Returns an iterator over the locations hosted by the city, possibly filtering by
         location type
 
-        :param location_types: either a :py:class:`city_graph.types.LocationType`,
-             or an interable of (default: all types available)
+        : param location_types: either a: py: class: `city_graph.types.LocationType`,
+             or an interable of(default: all types available)
 
-        :returns: An iterator of :py:class:`city_graph.types.Location` instances.
+        : returns: An iterator of: py: class: `city_graph.types.Location` instances.
         """
         if isinstance(location_types, str):
             location_types = [location_types]
@@ -181,40 +377,40 @@ class City:
         Return dictionary, which keys are a location type, and the values
         lists of the location of that type.
 
-        :param location_types: an iterator of :py:class:`types.LocationType`
+        : param location_types: an iterator of: py: class: `types.LocationType`
 
-        :returns: A dictionary {type:list of Location instances}
+        : returns: A dictionary {type: list of Location instances}
         """
-        return self._locations_manager.get_locations_by_types(location_types)
+        return self._locations_manager.get_locations(location_types)
 
     def get_location_types(self):
         """
         Returns the set of all location types having at least one
         representative location in the city
         """
-        return self._locations_manager.type_locations
+        return self._locations_manager.location_types
 
     def compute_distances(self):
         """
         Compute and store the pairwise distances between all known locations.
-        This will make calls to :py:meth:`.get_closest` faster.
-        This method can also be called before calls to :py:meth:`city_graph.city_io.save`
-        so that cities may be reloaed with pre-computed distances.
+        This will make calls to: py: meth: `.get_closest` faster.
+        This method can also be called before calls to: py: meth: `city_graph.city_io.save`
+        so that cities may be reloaed with pre - computed distances.
         """
         self._locations_manager.compute_all_distances()
 
     def get_closest(self, location, location_types=None):
         """
-        Returns the closest location. Note: this method will reuse pre-computed
-        distances if :py:meth:`.compute_distances` has been previously called.
+        Returns the closest location. Note: this method will reuse pre - computed
+        distances if: py: meth: `.compute_distances` has been previously called.
         Limitation: this method uses the coordinates of the position, and is
         not based on shortest path.
 
-        :param obj location: the location
-        :param location_types: the location_type or a list of location_types
-               used to generate the list of candidate locations (default: None, i.e.
+        : param obj location: the location
+        : param location_types: the location_type or a list of location_types
+               used to generate the list of candidate locations(default: None, i.e.
                any type)
-        :returns: the closest location of one of the specified type, or an
+        : returns: the closest location of one of the specified type, or an
                None of no such location exists.
         """
         return self._locations_manager.get_closest(location, location_types)
@@ -225,10 +421,10 @@ class City:
                        preferences):
         # blocking function that compute a plan
         # (in the main process)
-        return planning.get_plan(self._topology,
-                                 start,
-                                 target,
-                                 preferences)
+        return get_plan(self._topology,
+                        start,
+                        target,
+                        preferences)
 
     def _non_blocking_plan(self,
                            start,
@@ -242,7 +438,7 @@ class City:
         # Some (reasonable) refactor would be required to work on hard copies
         # of graph
         result = self._pool.apply_async(
-            planning.get_plan, args=(
+            get_plan, args=(
                 self._topology, start, target, preferences,))
         plan_id = self._next_plan_id()
         self._plans[plan_id] = result
@@ -259,23 +455,23 @@ class City:
         If blocking is True (the default), this function blocks and returns
         plan once computed. If blocking is False, this function requests a separate
         process to compute the plan, and returns immediately a plan_id. This plan_id can be
-        used to query the state of the computation (:py:meth:`.is_plan_ready`) and retrieve
-        the plan once the computation is terminated (:py:meth:`.get_plan`).
+        used to query the state of the computation(: py: meth: `.is_plan_ready`) and retrieve
+        the plan once the computation is terminated(: py: meth: `.get_plan`).
 
-        :param start: starting location
-        :type start: :py:class:`city_graph.types.Location`
+        : param start: starting location
+        : type start:: py: class: `city_graph.types.Location`
 
-        :param target: target location
-        :type target: :py:class:`city_graph.types.Location`
+        : param target: target location
+        : type target:: py: class: `city_graph.types.Location`
 
-        :param preferences: preferrence of each transportation mode
-        :type preferences: :py:class:`city_graph.types.Preferences`
+        : param preferences: preferrence of each transportation mode
+        : type preferences:: py: class: `city_graph.types.Preferences`
 
-        :param bool blocking: True if a plan should be computed then returned,
+        : param bool blocking: True if a plan should be computed then returned,
             False if the function should return immediately a job id
 
-        :returns: A plan (blocking is True) or a job id (blocking is False)
-        :rtype: :py:class:`city_graph.planning.Plan` or int
+        : returns: A plan(blocking is True) or a job id(blocking is False)
+        : rtype:: py: class: `city_graph.planning.Plan` or int
         """
 
         # run shortest path and return the plan
@@ -303,7 +499,7 @@ class City:
         # of all computation.
         results = [
             self._pool.apply_async(
-                planning.get_plan,
+                get_plan,
                 args=(
                     self._topology,
                     *request,)) for request in requests]
@@ -314,11 +510,11 @@ class City:
         """
         Compute a plan for each request. A request is a tuple
         (start location, target_location, preferences).
-        See :py:class:`city_graph.types.Location`, :py:class:`city_graph.types.Preferences`.
+        See: py: class: `city_graph.types.Location`, : py: class: `city_graph.types.Preferences`.
 
-        :param requests: An iterable of requests,
-            i.e tuple (start location, target_location, preferences)
-        :returns: A list of plans (:py:class:`.planning.Plan`),
+        : param requests: An iterable of requests,
+            i.e tuple(start location, target_location, preferences)
+        : returns: A list of plans(: py: class: `.planning.Plan`),
             with the same ordering as the requests
 
         """
@@ -332,25 +528,22 @@ class City:
         """
         Returns True if the plan corresponding to the passed id is finished,
         False otherwise.
-        See :py:meth:`.request_plan`.
+        See: py: meth: `.request_plan`.
 
-        :raises: :py:class:`ValueError`: if an unknown plan_id
+        : raises:: py: class: `KeyError`: if an unknown plan_id
         """
-        try:
-            result = self._plans[plan_id]
-        except BaseException:
-            raise ValueError()
+        result = self._plans[plan_id]
         return result.ready()
 
     def are_plans_ready(self, plan_ids):
         """
         Returns True if all the plans ready.
         False otherwise.
-        See :py:meth:`.request_plan`.
+        See: py: meth: `.request_plan`.
 
-        :param: plan_ids, an iterable of plan ids
-        :returns: True if all plans ready, False otherwise
-        :raises: :py:class:`ValueError`: if any invalid plan_id
+        : param: plan_ids, an iterable of plan ids
+        : returns: True if all plans ready, False otherwise
+        : raises:: py: class: `KeyError`: if any invalid plan_id
         """
         return all([self.is_plan_ready(plan_id)
                     for plan_id in plan_ids])
@@ -359,13 +552,10 @@ class City:
         """
         Returns the corresponding plan if its computation is finished, None otherwise.
         If the passed id does not correspond to a planning job,
-        a ValueError exception is raised.
-        See :py:meth:`.request_plan`.
+        a KeyError exception is raised.
+        See: py: meth: `.request_plan`.
         """
-        try:
-            result = self._plans[plan_id]
-        except BaseException:
-            raise ValueError()
+        result = self._plans[plan_id]
         if not result.ready():
             return None
         plan = result.get()
@@ -377,18 +567,18 @@ class City:
         Waits until completion of all related computation and
         then returns for each id the corresponding plan.
 
-        :param requests_id: an iterable of ids as returned by :py:meth:`.request_plan`.
-        :returns: a dictionary {plan_id: :py:class:`.planning.Plan`}
+        : param requests_id: an iterable of ids as returned by: py: meth: `.request_plan`.
+        : returns: a dictionary {plan_id:: py: class: `.planning.Plan`}
         """
         plans = {}
         for plan_id in plan_ids:
             try:
                 result = self._plans[plan_id]
-            except BaseException:
+            except KeyError:
                 result = None
             if result:
                 steps = result.get()
-                plan = planning.Plan()
+                plan = Plan()
                 if steps is not None:
                     plan.set_steps(steps)
                 plans[plan_id] = plan

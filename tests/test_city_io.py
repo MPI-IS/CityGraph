@@ -4,7 +4,6 @@ import tempfile
 from city_graph import city_io
 from city_graph.city import City
 from city_graph.types import LocationType, Location, TransportType
-from city_graph.topology import MultiEdgeUndirectedTopology
 
 from .fixtures import RandomTestCase
 
@@ -18,23 +17,20 @@ class TestCityIo(RandomTestCase):
         # name of the city
         self.city_name = "test_city"
 
-        # topology
-        self.topology = MultiEdgeUndirectedTopology(self.rng)
-
-        # add some nodes
-        # here we use locations as nodes
+        # locations
         l0 = Location(LocationType.HOUSEHOLD, (0, 0), name="l0")
         l1 = Location(LocationType.PHARMACY, (50, 0), name="l1")
         self.locations = [l0, l1]
 
-        for location in self.locations:
-            self.topology.add_node(location)
-
-        self.topology.add_edge(l0, l1, TransportType.ROAD.value,
-                               distance=1, duration=2)
-
+        # connections between the locations
+        # note that we are using the word `connection` here instead of `edge`
+        # to differentiate between them
+        connections = {
+            (l0, l1): (TransportType.ROAD,
+                       {'distance': 1, 'duration': 2})
+        }
         # city
-        self.city = City(self.city_name, self.locations, self.topology)
+        self.city = City.build_from_data(self.city_name, self.locations, connections)
 
     def test_city_name(self):
         """Testing city.name."""

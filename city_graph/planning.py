@@ -1,10 +1,10 @@
-from . import types
+from .types import TransportType
 
 
 class PlanStep:
     """
     A plan step represents a segment in a bigger plan for going from a starting
-    location to a target location ( a plan is a list of successive plan steps,
+    location to a target location (a plan is a list of successive plan steps,
     in which the target location of a step is the starting location of the next step).
 
     :param obj start: starting location of the step (:py:class:`city_graph.types.Location`)
@@ -20,10 +20,6 @@ class PlanStep:
 
     def __eq__(self, other):
         assert isinstance(other, self.__class__)
-        if self.start.location_id != other.start.location_id:
-            return False
-        if self.target.location_id != other.target.location_id:
-            return False
         attrs = [attr for attr in vars(self) if attr != "start"
                  and attr != "target"]
         if any([getattr(self, attr) != getattr(other, attr)
@@ -61,7 +57,7 @@ class Plan:
 
     @property
     def score(self):
-        return score
+        return self._score
 
     def set_steps(self, steps):
         """
@@ -84,7 +80,7 @@ class Plan:
         return self._valid
 
     @property
-    def get(self):
+    def steps(self):
         """
         :returns: the ordered list of :py:class:`.PlanStep` (or None for an invalid plan)
         """
@@ -149,23 +145,23 @@ def get_plan(topology,
     :returns: :py:class:`.Plan` if a plan is found, None otherwise
     """
 
-    assert all([mode in types.TransportType
-                for mode in preferences.mobility])
+    assert all([mode in TransportType for mode in preferences.mobility])
 
     try:
         # TODO: get_shortest_path API expected to take the mobility dict instead of
         #       its keys
+        # We need to take the nodes here
         score, path, data = topology.get_shortest_path(
-            start_location, target_location, preferences.criterion.value, [
-                m.value for m in preferences.mobility.keys()], preferences.data)
-    except ValueError as value_error:
+            start_location.node, target_location.node, preferences.criterion.value,
+            preferences.mobility, preferences.data)
+    except RuntimeError as error:
         # No Plan found, returning an invalid Plan
         # (an empty Plan is invalid, i.e. plan.is_valid())
         # dev note : returning an invalid plan, as opposed to raising
         # an expection, makes the multiprocessing computation of plans
         # easier.
         p = Plan()
-        p.set_error(str(value_error))
+        p.set_error(str(error))
         return p
 
     # for each segment in the path, creating a plan step, i.e.
