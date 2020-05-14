@@ -1,4 +1,4 @@
-[![Build status](https://raw.githubusercontent.com/MPI-IS-BambooAgent/sw_badges/master/badges/plans/citygraph/tag.svg?sanitize=true)](https://github.com/MPI-IS-BambooAgent/sw_badges)
+[![Build status](https://raw.githubusercontent.com/MPI-IS-BambooAgent/sw_badges/master/badges/plans/citygraph/tag.svg?sanitize=true)](https://atlas.is.localnet/bamboo/browse/BAMEI-CIT7/latest/)
 
 CityGraph
 =========
@@ -27,7 +27,7 @@ $ cd CityGraph
 $ pip install .
 ```
 
-*NOTE*: We strongly advise to install the package in a dedicated virutal environment.
+*NOTE*: We strongly advise to install the package in a dedicated virtual environment.
 
 Tests
 -----
@@ -48,6 +48,23 @@ $ cd doc
 $ make html
 ```
 and open the file `build/html/index.html` in your web browser.
+
+Authors
+-------
+
+[Jean-Claude Passy](https://github.com/jcpassy)
+(Software Workshop - Max Planck Institute for Intelligent Systems)
+
+[Ivan Oreshnikov](https://github.com/ioreshnikov)
+(Software Workshop - Max Planck Institute for Intelligent Systems)
+
+[Vincent Berenz](https://github.com/vincentberenz)
+(Max Planck Institute for Intelligent Systems)
+
+License
+-------
+
+BSD-3-Clause (see LICENSE.md)
 
 Copyright
 ---------

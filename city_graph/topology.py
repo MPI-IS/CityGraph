@@ -95,8 +95,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         """
 
         # Adding longitude and latitude to attributes
-        node_attrs[MultiEdgeUndirectedTopology.NODE_LONG] = longitude
-        node_attrs[MultiEdgeUndirectedTopology.NODE_LAT] = latitude
+        node_attrs[self.NODE_LONG] = longitude
+        node_attrs[self.NODE_LAT] = latitude
         # Create node
         self.graph.add_node(node_id, **node_attrs)
 
@@ -121,10 +121,10 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         n2 = self.get_node(n2)
 
         return utility_distance(
-            n1[MultiEdgeUndirectedTopology.NODE_LONG],
-            n1[MultiEdgeUndirectedTopology.NODE_LAT],
-            n2[MultiEdgeUndirectedTopology.NODE_LONG],
-            n2[MultiEdgeUndirectedTopology.NODE_LAT]
+            n1[self.NODE_LONG],
+            n1[self.NODE_LAT],
+            n2[self.NODE_LONG],
+            n2[self.NODE_LAT]
         )
 
     def add_edge(self, node1, node2, edge_type, **edge_attrs):
@@ -140,7 +140,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         _ = self.get_node(node2)
 
         # Adding type to attributes
-        edge_attrs[MultiEdgeUndirectedTopology.EDGE_TYPE] = edge_type
+        edge_attrs[self.EDGE_TYPE] = edge_type
         # Create edge
         self.graph.add_edge(node1, node2, **edge_attrs)
 
@@ -163,7 +163,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # Filter if necessary
         if edge_types:
             edges = {e: v for e, v in edges.items()
-                     if edges[e][MultiEdgeUndirectedTopology.EDGE_TYPE] in edge_types}
+                     if edges[e][self.EDGE_TYPE] in edge_types}
 
         return edges
 
@@ -192,8 +192,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # Get all the weights but keep only those that are allowed
         # This will throw a KeyError is some edges do not have the weight specified
         try:
-            weights = [(attrs[MultiEdgeUndirectedTopology.EDGE_TYPE], attrs[weight]) for attrs in edges.values()
-                       if attrs[MultiEdgeUndirectedTopology.EDGE_TYPE] in allowed_types]
+            weights = [(attrs[self.EDGE_TYPE], attrs[weight]) for attrs in edges.values()
+                       if attrs[self.EDGE_TYPE] in allowed_types]
         except KeyError:
             raise KeyError(
                 "No edge with attribute %s found between nodes %s and %s" % (
@@ -271,7 +271,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
                 edge_types.append(best_types[(u, v)])
             except KeyError:
                 edge_types.append(best_types[(v, u)])
-        data[MultiEdgeUndirectedTopology.EDGE_TYPE] = np.array(edge_types)
+        data[self.EDGE_TYPE] = np.array(edge_types)
 
         # Additional data if needed
         edge_data = edge_data or []
@@ -279,7 +279,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             try:
                 temp_list = [self.get_edges(u, v, [t])[0][attr]
                              for u, v, t in zip(
-                                 path, path[1:], data[MultiEdgeUndirectedTopology.EDGE_TYPE])]
+                                 path, path[1:], data[self.EDGE_TYPE])]
                 data[attr] = np.array(temp_list)
             except KeyError:
                 raise KeyError("Some nodes do not have the attribute '%s'." % attr)
@@ -393,23 +393,24 @@ class MultiEdgeUndirectedTopology(BaseTopology):
                 termination = TerminationReason.ALL_NODES_CONNECTED
 
         # Inform the user why the algorithm has stopped
-        print("[Topology] Sampling finished:", termination)
+        print("[Topology] Sampling finished after", step, "steps. Reason:", termination)
 
         # Build edges from the adjacency matrix
         # Rescale the distances
         distances *= max_distance
 
         # Get pair of nodes to connect
-        pairs = ((n1, n2, i, j) for (i, n1), (j, n2) in product(enumerate(self.nodes), repeat=2)
-                 if (i, j) in zip(*adjacency_matrix.nonzero()))
+        # Here we use indices because we will need them later on for the distances
+        pairs = [(i, j) for i, j in zip(*adjacency_matrix.nonzero())]
 
         # Create edges
         # TODO: attributes should be passed to the function
         weight = "distance"
         old_num_edges = self.num_of_edges
-        for n1, n2, i, j in pairs:
+        node_ids = list(self.nodes)
+        for i, j in pairs:
             for edge_type in edge_types:
-                self.add_edge(n1, n2, edge_type, **{weight: distances[i, j]})
+                self.add_edge(node_ids[i], node_ids[j], edge_type, **{weight: distances[i, j]})
 
         # Inform that edges have been built
         print("[Topology] %i edges have been created" % (self.num_of_edges - old_num_edges))

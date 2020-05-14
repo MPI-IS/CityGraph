@@ -3,8 +3,14 @@ import multiprocessing
 
 from .planning import get_plan, Plan
 from .topology import MultiEdgeUndirectedTopology
-from .types import LocationType, Location, TransportType
+from .types import LocationType, Location, TransportType, LocationDistribution
 from .utils import RandomGenerator, distance
+
+
+DEFAULT_LOCATION_DISTRIBUTION = LocationDistribution(
+    household=295, office=150, school=3, university=2,
+    supermarket=25, retail=20, sports_centre=5, park=5,
+    restaurant=5, bar=5)
 
 
 class LocationManager:
@@ -264,9 +270,8 @@ class City:
         )
 
         # Call builder
-        city = cls.build_from_data(name, locations, rng=rng,
+        return cls.build_from_data(name, locations, rng=rng,
                                    create_network=create_network, **kwargs)
-        return city
 
     def create_connections_by_energy(
             self, connection_types=(TransportType.ROAD, TransportType.WALK),

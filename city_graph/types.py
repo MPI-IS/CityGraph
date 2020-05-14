@@ -116,11 +116,6 @@ class BaseEnumMapping(UserDict):
             for member in enum_cls
         }
 
-    @property
-    def members(self):
-        """Returns the keys."""
-        return self.data.keys()
-
     # Cannot delete item
     def __delitem__(self, *args, **kwargs):
         raise RuntimeError('Deleting an item is not allowed.')
@@ -128,20 +123,20 @@ class BaseEnumMapping(UserDict):
     # Cannot add new item
     def __setitem__(self, key, value):
 
-        for m in self.members:
+        for m in self.keys():
             if key in (m, m.name.lower()):
                 super().__setitem__(m, value)
                 return
         # If non-exisiting item, raise exception
         message = 'Adding new item is not allowed, you can only reset one of these:\n - '
-        message += '\n - '.join(m.__str__() for m in self.members)
+        message += '\n - '.join(m.__str__() for m in self.keys())
         raise RuntimeError(message)
 
     def __repr__(self):
         return "{}:\n - {}".format(
             type(self).__name__,
             '\n - '.join('{} = {}'.format(m.__str__(), self.data[m])
-                         for m in self.members))
+                         for m in self.keys()))
 
 
 class LocationDistribution(BaseEnumMapping):
