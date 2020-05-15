@@ -30,7 +30,8 @@ class TestCityIo(RandomTestCase):
                        {'distance': 1, 'duration': 2})
         }
         # city
-        self.city = City.build_from_data(self.city_name, self.locations, connections)
+        self.city = City.build_from_data(self.city_name, self.locations, connections,
+                                         create_network=False)
 
     def test_city_name(self):
         """Testing city.name."""

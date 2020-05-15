@@ -4,6 +4,7 @@ Topology
 
 Module for building and operating on graphs.
 """
+from contextlib import suppress
 from enum import Enum
 from functools import partial
 from itertools import product, combinations
@@ -92,7 +93,14 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
         :param int node_id: Node id.
         :param dict node_attrs: Node attributes.
+
+        :raises:
+            :py:class:`RuntimeError`: if a node with the same ID already exists.
         """
+
+        # If there is no node with the same ID already, raise exception
+        if self.graph.has_node(node_id):
+            raise RuntimeError("Node %s already exists." % node_id)
 
         # Adding longitude and latitude to attributes
         node_attrs[self.NODE_LONG] = longitude
@@ -134,10 +142,23 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :param obj node2: Label of the second node.
         :param obj edge_type: Edge type.
         :param dict edge_attrs: Additional attributes of the edge.
+
+        :raises:
+            :py:class:`RuntimeError`: if an edge with the same type already exists.
         """
 
         _ = self.get_node(node1)
         _ = self.get_node(node2)
+
+        # If an edge of the given type between the two nodes already exits: error
+        # We take into account that the graph in undirected
+        with suppress(KeyError):
+            types_existing_edges = [e[self.EDGE_TYPE] == edge_type
+                                    for e in self.get_edges(node1, node2).values()]
+            if any(types_existing_edges):
+                raise RuntimeError(
+                    'Already existing edge %s between nodes %s and %s' % (edge_type, node1, node2)
+                )
 
         # Adding type to attributes
         edge_attrs[self.EDGE_TYPE] = edge_type
@@ -158,12 +179,20 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         try:
             edges = dict(self.graph[node1][node2])
         except KeyError:
-            raise KeyError('No edge between nodes %s and %s' % (node1, node2))
+            # undirected graph
+            try:
+                edges = dict(self.graph[node2][node1])
+            except KeyError:
+                raise KeyError('No edge between nodes %s and %s' % (node1, node2))
 
         # Filter if necessary
         if edge_types:
             edges = {e: v for e, v in edges.items()
                      if edges[e][self.EDGE_TYPE] in edge_types}
+
+            # If dict is empty, there is no edge
+            if not edges:
+                raise KeyError('No edge between nodes %s and %s' % (node1, node2))
 
         return edges
 
@@ -277,9 +306,10 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         edge_data = edge_data or []
         for attr in edge_data:
             try:
-                temp_list = [self.get_edges(u, v, [t])[0][attr]
-                             for u, v, t in zip(
-                                 path, path[1:], data[self.EDGE_TYPE])]
+                temp_list = [
+                    self.get_edges(u, v, [t])[0][attr]
+                    for u, v, t in zip(
+                        path, path[1:], data[self.EDGE_TYPE])]
                 data[attr] = np.array(temp_list)
             except KeyError:
                 raise KeyError("Some nodes do not have the attribute '%s'." % attr)
@@ -288,7 +318,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
 
     def add_energy_based_edges(
             self, edge_types, num_edges_per_step, max_iterations,
-            degree_energy_factor, distance_energy_factor, rng):
+            degree_energy_factor, distance_energy_factor, rng,
+            attribute_name='distance'):
         """
         This algorithm creates edges based on an energy sampling mechanism.
         At each iteration, the total energy (degree energy + potential energy)
@@ -357,7 +388,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             # c) compute edge sampling probability distribution
             total_energy = degree_energy + distance_energy
 
-            # mask connected edges
+            # mask existing edges
             total_energy[adjacency_matrix > EPS_PRECISION] = np.inf
             # mask self-edges
             np.fill_diagonal(total_energy, np.inf)
@@ -404,18 +435,22 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         pairs = [(i, j) for i, j in zip(*adjacency_matrix.nonzero())]
 
         # Create edges
-        # TODO: attributes should be passed to the function
-        weight = "distance"
         old_num_edges = self.num_of_edges
         node_ids = list(self.nodes)
         for i, j in pairs:
             for edge_type in edge_types:
-                self.add_edge(node_ids[i], node_ids[j], edge_type, **{weight: distances[i, j]})
+
+                # TODO: exception might be raised here because we now check
+                # That there is no outgoing/incoming edges.
+                # Should we fix when we use an actual triangular matrix
+                with suppress(RuntimeError):
+                    self.add_edge(node_ids[i], node_ids[j], edge_type,
+                                  **{attribute_name: distances[i, j]})
 
         # Inform that edges have been built
         print("[Topology] %i edges have been created" % (self.num_of_edges - old_num_edges))
 
-    def add_edges_between_centroids(self, edge_types, num_centroids, rng):
+    def add_edges_between_centroids(self, edge_types, num_centroids, rng, attribute_name='distance'):
         """
         This algorithm creates edges between central nodes. These central nodes
         are determined by a clustering algorithm (here the Fluid Communities algorithm).
@@ -426,32 +461,45 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :type rng: :py:class: `.RandomGenerator`
         """
 
-        print("[Topology] Starting building edges between central nodes.")
+        print("[Topology] Starting building edges between %s central nodes." % num_centroids)
 
         # Calculate clusters
+        # TODO: I think it would make sense to instead use e.g. a k-means for two reasons:
+        #  * this algo assumes that the clusters have the same density, which is not necessarily
+        # application to cities (some areas are more crowded)
+        #  *  the implementation needs the graph to be fully connected to begin with. It seems
+        # to be a limitation
         clusters = (list(c) for c in asyn_fluidc(
             self.graph, k=num_centroids, seed=rng.rand_int()))
 
-        # Extract centroids
+        # Extract centroids: we take the node with the highest degree
         centroids = [c[int(np.argmax([self.graph.degree[n] for n in c]))] for c in clusters]
 
         # Create temporary graph for the centroids
         tmp_graph = Graph()
         tmp_graph.add_nodes_from(centroids)
         # We need the combinations because the graph is undirected and we dont want self-edges
-        # TODO: attributes should be passed to the function
-        weight = "distance"
+
         for n1, n2 in combinations(centroids, 2):
-            tmp_graph.add_edge(n1, n2, **{weight: self.distance(n1, n2)})
+            tmp_graph.add_edge(n1, n2, **{attribute_name: self.distance(n1, n2)})
 
         # Calculate subgraph with the minimum sum of edge weights
-        subgraph = minimum_spanning_tree(tmp_graph, weight=weight)
+        # TODO: to investigate why we do this here...
+        subgraph = minimum_spanning_tree(tmp_graph, weight=attribute_name)
 
         # Build edges
         # Here we can reuse the previously calculated distances
+        old_num_edges = self.num_of_edges
         for (n1, n2) in subgraph.edges:
+            print(n1, n2)
             for edge_type in edge_types:
-                self.add_edge(n1, n2, edge_type, **subgraph[n1][n2])
+
+                # TODO: exception might be raised here because we now check
+                # That there is no outgoing/incoming edges.
+                # Should we fix when we use an actual triangular matrix
+                with suppress(RuntimeError):
+                    self.add_edge(n1, n2, edge_type, **subgraph[n1][n2])
+                    print(n1, n2, 'ok')
 
         # Inform that edges have been built
-        print("[Topology] %i edges have been created" % len(subgraph.edges))
+        print("[Topology] %i edges have been created" % (self.num_of_edges - old_num_edges))

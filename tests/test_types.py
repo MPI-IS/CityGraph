@@ -60,7 +60,7 @@ class TestLocationDistribution(RandomTestCase):
         """Checks the correct initialization of a mapping instance."""
 
         # Default
-        self.assertListEqual(list(self.dist.keys()), list(LocationType))
+        self.assertSetEqual(set(self.dist.keys()), set(LocationType))
         self.assertSetEqual(set(self.dist.values()), {0})
 
         # With specific values
