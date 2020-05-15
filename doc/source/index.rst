@@ -10,7 +10,7 @@ Welcome to CityGraph's documentation!
    :maxdepth: 1
    :caption: Contents:
 
-   pages/coordinates
+   pages/city
    pages/topolgy
    pages/utils
 

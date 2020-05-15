@@ -1,3 +1,5 @@
+from contextlib import suppress
+from itertools import combinations
 from unittest import TestCase
 
 from city_graph.topology import \
@@ -76,10 +78,9 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
         }
         self.assertDictEqual(self.top.graph.nodes[c], coords)
 
-        # Try to add identical node: does not work
-        self.top.add_node(c, x, y)
-        self.assertEqual(self.top.num_of_nodes, 1)
-        self.assertDictEqual(self.top.graph.nodes[c], coords)
+        # Try to add identical node: exception
+        with self.assertRaises(RuntimeError):
+            self.top.add_node(c, x, y)
 
         # Add another node with attributes
         c2, x2, y2 = self.create_node()
@@ -132,6 +133,16 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
         self.assertEqual(self.top.num_of_edges, 2)
         self.assertDictEqual(self.top.graph.edges[c1, c2, 0], expected_attrs)
         self.assertDictEqual(self.top.graph.edges[c2, c1, 0], expected_attrs)
+
+        # Add edge of different type with same attrs between the same nodes: OK
+        self.top.add_edge(c1, c2, edge_type + '2', **edge_attrs)
+        self.assertEqual(self.top.num_of_edges, 3)
+
+        # Add edge of same type and different attributes: error:
+        with self.assertRaises(RuntimeError):
+            self.top.add_edge(c1, c2, edge_type)
+        with self.assertRaises(RuntimeError):
+            self.top.add_edge(c2, c1, edge_type)
 
     def test_get_node(self):
         """Checks the method extracing an edge."""
@@ -192,11 +203,22 @@ class TestMultiEdgeUndirectedTopology(RandomTestCase):
         # Get all the edges between the nodes
         edges = self.top.get_edges(node_start, node_end)
         self.assertEqual(len(edges), num_edges)
-
         # Check data
         for e, t, w in zip(edges, edge_types, weights):
             self.assertEqual(edges[e][EDGE_TYPE], t)
             self.assertEqual(edges[e][weight_name], w[weight_name])
+
+        # Since the graph is undirected, we can invert the args and things should still work
+        edges = self.top.get_edges(node_end, node_start)
+        self.assertEqual(len(edges), num_edges)
+        # Check data
+        for e, t, w in zip(edges, edge_types, weights):
+            self.assertEqual(edges[e][EDGE_TYPE], t)
+            self.assertEqual(edges[e][weight_name], w[weight_name])
+
+        # If a type is requested and no edge of this type exists, an exception is raised
+        with self.assertRaises(KeyError):
+            self.top.get_edges(node_end, node_start, [self.rng.rand_str()])
 
     def test_get_edges_only_some_types(self):
         """Checks that we can filter the edges by types."""
@@ -559,22 +581,177 @@ class TestGetShortestPath(RandomTestCase):
 
 
 class TestEnergyBasedGraph(RandomTestCase):
-    """Class testing the graph builder."""
+    """Class testing the energy graph builder."""
 
     def setUp(self):
-
         super().setUp()
-        self.nodes = [self.create_node() for _ in range(10)]
+
+        self.nodes = [self.create_node() for _ in range(20)]
         self.nodes = {n: (x, y) for n, x, y in self.nodes}
         self.top = MultiEdgeUndirectedTopology(self.nodes)
+        self.edge_types = [self.rng.rand_str(10) for _ in range(1 + self.rng.rand_int(10))]
 
-    def test_energy_based_edge_builder(self):
-        """Check the function adding edges based on the energy algorithm."""
-        self.top.add_energy_based_edges(['EDGE_TYPE'], 5, 10, 1.0, 1.0, self.rng)
+    def test_no_max_iterations(self):
+        """Check that the algorithm terminates when there is no maximum of iterations."""
 
-    def test_central_edge_builder(self):
-        """Checkd the function adding edges between central nodes."""
+        self.top.add_energy_based_edges(self.edge_types, 1, None, 1.0, 1.0, self.rng)
+
+        # All nodes should be connected
+        node_has_edges = [len(self.top.graph.edges(node)) > 1 for node in self.top.nodes]
+        self.assertTrue(all(node_has_edges))
+
+        self.assertGreaterEqual(self.top.num_of_edges, len(self.nodes) * len(self.edge_types))
+
+    def test_num_edges_per_iterations(self):
+        """Checks that the algorithm creates the right number of edges at one iteration."""
+
+        # A single iteration
+        num_edges = self.rng.rand_int(len(self.nodes))
+        self.top.add_energy_based_edges(self.edge_types, num_edges, 1, 1.0, 1.0, self.rng)
+        # TODO: should be equal when we use triangular matrix
+        self.assertLessEqual(self.top.num_of_edges, num_edges * len(self.edge_types))
+
+    def test_nodes_isolated(self):
+        """Check that we can end up with isolated nodes."""
+
+        num_edges = len(self.nodes) - 1
+        self.top.add_energy_based_edges(self.edge_types, num_edges, 1, 1.0, 1.0, self.rng)
+
+        # Some nodes should be isolated
+        node_has_edges = [len(self.top.graph.edges(node)) > 1 for node in self.top.nodes]
+        self.assertFalse(all(node_has_edges))
+
+    def test_effect_factors(self):
+        """Checks that effects of the degree and distance energy factors."""
+
+        # Simple topology with 3 nodes (2 very close, one far away)
+        n1, x1, y1 = self.create_node(0, 0)
+        n2, x2, y2 = self.create_node(1, 0)
+        n3, x3, y3 = self.create_node(180, 1)
+
+        top3 = MultiEdgeUndirectedTopology(
+            {
+                n1: (x1, y1),
+                n2: (x2, y2),
+                n3: (x3, y3),
+            }
+        )
+        edge_type = self.rng.rand_str()
+
+        # Add one edge for a single iteration
+        # Favor close edges
+        top3.add_energy_based_edges([edge_type], 1, 1, 1.0, 1e4, self.rng)
+        self.assertEqual(top3.num_of_edges, 1)
+        _ = top3.get_edges(n1, n2, [edge_type])
+
+        # Create many edges between n1 and n3 to increase their degree
+        num_synthetic_edges = 100
+        for i in range(num_synthetic_edges):
+            top3.add_edge(n1, n3, 'edge %s' % i)
+        self.assertEqual(top3.num_of_edges, num_synthetic_edges + 1)
+
+        # Now creating an edge favoring degree
+        # Edge should be built between n1 and n2
+        edge_type2 = self.rng.rand_str()
+        top3.add_energy_based_edges([edge_type2], 1, 1, 1e4, 1, self.rng)
+        # JC: This does not work as well as I expected
+        #_ = top3.get_edges(n2, n1, [edge_type2])
+
+
+class TestCentroidsBasedGraph(RandomTestCase):
+    """Class testing the builder creating edges between central points."""
+
+    def test_central_num_of_centroids(self):
+        """Checks the function adding edges between central nodes."""
+
+        nodes = [self.create_node() for _ in range(20)]
+        nodes = {n: (x, y) for n, x, y in nodes}
+        top = MultiEdgeUndirectedTopology(nodes)
+        edge_types = [self.rng.rand_str(10) for _ in range(1 + self.rng.rand_int(10))]
 
         # Connected graph required
-        self.top.add_energy_based_edges(['EDGE_TYPE'], 5, 5, 1.0, 1.0, self.rng)
-        self.top.add_edges_between_centroids(['EDGE_TYPE'], 5, self.rng)
+        top.add_energy_based_edges(edge_types, 10, None, 1.0, 1.0, self.rng)
+
+        num_edges = top.num_of_edges
+        edge_type = self.rng.rand_str()
+
+        # Works with a single centroid, but no edge is built
+        top.add_edges_between_centroids([edge_type], 1, self.rng)
+        self.assertEqual(top.num_of_edges, num_edges)
+
+        # 2 centroids, 1 edge is created
+        top.add_edges_between_centroids([edge_type], 2, self.rng)
+        self.assertEqual(top.num_of_edges, num_edges + 1)
+
+    def create_close_node(self, topology, node, dx, dy):
+        """
+        Convenient function to create a node next to another one
+        given deltas in longitude and latitude.
+        """
+
+        x0 = topology.get_node(node)[topology.NODE_LAT]
+        y0 = topology.get_node(node)[topology.NODE_LONG]
+
+        x = x0 + -0.5 + self.rng() * dx
+        y = y0 + -0.5 + self.rng() * dy
+        return self.create_node(x, y)
+
+    def test_clustered_data(self):
+        """Checks the algorithm on a clustered graph."""
+
+        # First create 4 nodes far apart: poles + two on the equator
+        n1, x1, y1 = self.create_node(0, 0)
+        n2, x2, y2 = self.create_node(180, 0)
+        n3, x3, y3 = self.create_node(0, 90)
+        n4, x4, y4 = self.create_node(0, -90)
+        centers = (n1, n2, n3, n4)
+        top = MultiEdgeUndirectedTopology(
+            {
+                n1: (x1, y1),
+                n2: (x2, y2),
+                n3: (x3, y3),
+                n4: (x4, y4),
+            }
+        )
+        edge_type = self.rng.rand_str()
+
+        # Create a lof of nodes around these "centers"
+        num_satellites = 10
+        for _ in range(num_satellites):
+            for nc in centers:
+                n, x, y = self.create_close_node(top, nc, 1, 1)
+                top.add_node(n, x, y)
+                top.add_edge(n, nc, edge_type)
+
+        num_edges = len(centers) * num_satellites
+        self.assertEqual(top.num_of_edges, num_edges)
+
+        # For some reason these centers should be connected
+        # Otherwise the algo complains that the Graph is not connected
+        # See comment in the topology.py
+        edge_type2 = self.rng.rand_str()
+        top.add_edge(n1, n2, edge_type2)
+        top.add_edge(n2, n3, edge_type2)
+        top.add_edge(n3, n4, edge_type2)
+        top.add_edge(n4, n1, edge_type2)
+
+        num_edges += 4
+        self.assertEqual(top.num_of_edges, num_edges)
+
+        # Running the algorithm looking for 4 centroids
+        edge_type3 = self.rng.rand_str()
+
+        top.add_edges_between_centroids([edge_type3], len(centers), self.rng)
+        # This is a <= because we calculate a minimum_spanning_tree
+        new_edges_counter = 0
+        #print("centers: ", centers)
+        for a, b in combinations(centers, 2):
+            with suppress(KeyError):
+                #print("a=", a, "b=", b)
+                _ = top.get_edges(a, b, [edge_type3])
+                # print(_)
+                new_edges_counter += 1
+
+        # TODO: this does not work...
+        # Centroids are not all in the list of centers...
+        #self.assertEqual(top.num_of_edges, num_edges + new_edges_counter)

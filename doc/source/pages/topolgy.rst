@@ -12,7 +12,7 @@ Topology
 Introduction
 ------------
 
-A ``topology`` is a representation of a virtual or real area.
+A ``topology`` is a representation of a virtual or real network.
 Its main attribute is a graph that is composed of nodes and edges between them.
 
 Additionally, it must have methods to add nodes and edges, and calculate
