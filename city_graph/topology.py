@@ -491,7 +491,6 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         # Here we can reuse the previously calculated distances
         old_num_edges = self.num_of_edges
         for (n1, n2) in subgraph.edges:
-            print(n1, n2)
             for edge_type in edge_types:
 
                 # TODO: exception might be raised here because we now check
@@ -499,7 +498,6 @@ class MultiEdgeUndirectedTopology(BaseTopology):
                 # Should we fix when we use an actual triangular matrix
                 with suppress(RuntimeError):
                     self.add_edge(n1, n2, edge_type, **subgraph[n1][n2])
-                    print(n1, n2, 'ok')
 
         # Inform that edges have been built
         print("[Topology] %i edges have been created" % (self.num_of_edges - old_num_edges))

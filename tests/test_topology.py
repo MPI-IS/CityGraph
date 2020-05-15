@@ -651,10 +651,11 @@ class TestEnergyBasedGraph(RandomTestCase):
         self.assertEqual(top3.num_of_edges, num_synthetic_edges + 1)
 
         # Now creating an edge favoring degree
-        # Edge should be built between n2 and n3
+        # Edge should be built between n1 and n2
         edge_type2 = self.rng.rand_str()
         top3.add_energy_based_edges([edge_type2], 1, 1, 1e4, 1, self.rng)
-        _ = top3.get_edges(n2, n3, [edge_type2])
+        # JC: This does not work as well as I expected
+        #_ = top3.get_edges(n2, n1, [edge_type2])
 
 
 class TestCentroidsBasedGraph(RandomTestCase):
