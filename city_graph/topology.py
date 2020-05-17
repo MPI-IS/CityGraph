@@ -342,6 +342,8 @@ class MultiEdgeUndirectedTopology(BaseTopology):
             during the search for new edges (higher means more prominent).
         :param rng: Random number generator.
         :type rng: :py:class: `.RandomGenerator`
+
+        :note: The algorithm does take into account already exisiting edges to compute the probabilities.
         """
 
         print("[Topology] Starting energy sampling algorithm to build edges.")
@@ -360,7 +362,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         max_distance = distances.max()
         distances /= max_distance
 
-        # Adjacency matrix
+        # Adjacency matrix (not taking into account previously existing edges)
         adjacency_matrix = np.zeros(shape=array_shape)
 
         # Step 2: sampling

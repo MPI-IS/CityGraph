@@ -230,7 +230,7 @@ class City:
 
         # Call energy algorithm if necessary
         if create_network:
-            city.create_connections_by_energy(**kwargs)
+            city.create_connections_by_energy(rng=rng, **kwargs)
         return city
 
     @classmethod
