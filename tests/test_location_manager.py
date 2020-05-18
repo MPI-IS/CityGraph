@@ -9,14 +9,26 @@ from .fixtures import RandomTestCase
 #        It is not part of the user interface.
 
 
+def _distance(x1, y1, x2, y2):
+    return abs(x1 - x2)
+
+
 class _Location:
     def __init__(self, index, location_type):
         self.index = index
         self.location_type = location_type
 
-    @classmethod
-    def distance(cls, l1, l2):
-        return abs(l1.index - l2.index)
+    @property
+    def x(self):
+        return float(self.index)
+
+    @property
+    def y(self):
+        return 0.0
+
+    def distance(self, other):
+        return _distance(self.x, self.y,
+                         other.x, other.y)
 
     def __eq__(self, other):
         if self.index != other.index:
@@ -58,7 +70,7 @@ class TestLocationManager(RandomTestCase):
                 loc.node = 2
 
         # LocationManager
-        self.lm = city.LocationManager(self._locations, fdistance=_Location.distance)
+        self.lm = city.LocationManager(self._locations, fdistance=_distance)
 
     def test_types(self):
         """Check types are extracted properly."""

@@ -39,6 +39,25 @@ class MobilityType(tuple, Enum):
     BIKE = (TransportType.BIKE, ) + PUBLIC_TRANSPORT
     WALK = (TransportType.WALK, )
 
+# d is a dict which keys are either members of TransportType or
+# members of MobilityType
+# (because it is convenient for user to provide value for "PUBLIC_TRANSPORT"
+# in general)
+# This function returns the corresponding dictionary for which keys
+# are all members of TransportType
+# (e.g. it deploys PUBLIC_TRANSPORT into each corresponding TransportType)
+
+
+def _mobility_to_transport(d):
+    r = {}
+    for k, v in d.items():
+        if k in MobilityType:
+            for tt in k:
+                r[tt] = v
+        else:
+            r[k] = v
+    return r
+
 
 class LocationType(str, Enum):
     """
@@ -164,7 +183,7 @@ class Preferences:
     Encapsulate the user's preferences for path planning,
     e.g.  his/her relative preferrances for the various transporation modes.
 
-    :param criterion: graph edge attribute used as weight (default:duration)
+    :param criterion: graph edge attribute used as weight (default: distance)
     :param weights: dictionary of keys of type :py:class:`.MobilityType` related
         to a preference weight (the highest the value, the preferred the transportation mode)
     """
@@ -172,7 +191,7 @@ class Preferences:
     __slots__ = ("_mobility", "_criterion", "_data")
 
     def __init__(self,
-                 criterion=PathCriterion.DURATION,
+                 criterion=PathCriterion.DISTANCE,
                  mobility=None,
                  data=None):
 
@@ -182,8 +201,7 @@ class Preferences:
             message += '\n\t- '.join(t.__str__() for t in PathCriterion)
             raise ValueError(message)
 
-        self._mobility = mobility or {}
-        self._normalize_mobility()
+        self._set_mobility(mobility)
         self._criterion = criterion
         self._data = data or []
 
@@ -199,10 +217,15 @@ class Preferences:
     def mobility(self):
         return self._mobility
 
+    def _set_mobility(self, values):
+        if values is not None:
+            self._mobility = values
+            self._mobility = _mobility_to_transport(self._mobility)
+            self._normalize_mobility()
+
     @mobility.setter
     def mobility(self, values):
-        self._mobility = values
-        self._normalize_mobility()
+        self._set_mobility(values)
 
     # because it is more intuitive, weights is provided by the user
     # as (for example):
@@ -217,10 +240,11 @@ class Preferences:
 
     def _normalize_mobility(self):
         sum_mobility = sum(self._mobility.values())
-        normalized_mobility = {mode: value / sum_mobility
-                               for mode, value in self._mobility.items()}
-        self._mobility = {mode: (1.0 - nw)
-                          for mode, nw in normalized_mobility.items()}
+        if sum_mobility != 0:
+            normalized_mobility = {mode: value / sum_mobility
+                                   for mode, value in self._mobility.items()}
+            self._mobility = {mode: (1.0 - nw)
+                              for mode, nw in normalized_mobility.items()}
 
 
 class Location:

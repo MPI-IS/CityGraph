@@ -50,6 +50,16 @@ class LocationManager:
             except KeyError:
                 self._locations[loc.location_type] = [loc]
 
+    def from_nodes_to_locations(self, plan):
+        # plan: instance of planning.Plan.
+        # plan is generated using nodes, but user will need
+        # locations
+        if not plan.is_valid():
+            return
+        for step in plan.steps():
+            step.start = self._locations_by_node[step.start][0]
+            step.target = self._locations_by_node[step.target][0]
+
     @property
     def location_types(self):
         """Returns all location types."""
@@ -96,7 +106,7 @@ class LocationManager:
         try:
             return self._get_distance(l1, l2)
         except KeyError:
-            d = self._func_distance(l1, l2)
+            d = self._func_distance(l1.x, l1.y, l2.x, l2.y)
             self._distances[(l1, l2)] = d
             return d
 
@@ -159,7 +169,7 @@ class City:
     :param str name: name of the city
     :param rng: Random number generator.
     :type rng: :py:class: `.RandomGenerator`
-    :param int nb_processes: number of processes to use(when computing shortest paths)
+    :param int nb_processes: number of processes to use (when computing shortest paths)
     """
 
     __slots__ = ("name", "_topology", "_pool", "_nb_processes",
@@ -186,9 +196,13 @@ class City:
         # used for attributing a unique new id to each plan
         self._plan_id = 0
 
+    def __del__(self):
+        self._pool.terminate()
+        self._pool.join()
+
     @classmethod
     def build_from_data(cls, name, locations, connections=None, rng=None,
-                        create_network=True, **kwargs):
+                        create_network=True, nb_processes=1, **kwargs):
         """
         Creates a city with locations and connections provided as input.
 
@@ -201,6 +215,7 @@ class City:
         :param rng: Random number generator.
         :type rng: :py:class: `.RandomGenerator`
         :param int create_network: Whether to run create connections using the energy algorithm
+        :param int nb_processes: number of processes to use (when computing shortest paths)
         :param dict **kwargs: Additional kwargs to pass to the energy algorithm
 
         :note: The location coordinates (longitude and latitude)
@@ -226,7 +241,7 @@ class City:
         topology = MultiEdgeUndirectedTopology(nodes, edges)
 
         # Default constructor
-        city = cls(name, locations, topology)
+        city = cls(name, locations, topology, nb_processes=nb_processes)
 
         # Call energy algorithm if necessary
         if create_network:
@@ -426,10 +441,12 @@ class City:
                        preferences):
         # blocking function that compute a plan
         # (in the main process)
-        return get_plan(self._topology,
+        plan = get_plan(self._topology,
                         start,
                         target,
                         preferences)
+        self._locations_manager.from_nodes_to_locations(plan)
+        return plan
 
     def _non_blocking_plan(self,
                            start,
@@ -565,6 +582,7 @@ class City:
             return None
         plan = result.get()
         del self._plans[plan_id]
+        self._locations_manager.from_nodes_to_locations(plan)
         return plan
 
     def retrieve_plans(self, plan_ids):
@@ -586,5 +604,6 @@ class City:
                 plan = Plan()
                 if steps is not None:
                     plan.set_steps(steps)
+                self._locations_manager.from_nodes_to_locations(plan)
                 plans[plan_id] = plan
         return plans
