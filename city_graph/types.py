@@ -20,6 +20,20 @@ class TransportType(Enum):
     TRAM = 7
 
 
+
+"""
+Average speed (in meters/seconds) of transport types
+(dictionary, key: TransportType, value: speed)
+"""    
+AVERAGE_SPEEDS = { TransportType.WALK: 1.39,
+                   TransportType.BIKE: 4.3,
+                   TransportType.ROAD: 13.8,
+                   TransportType.BUS: 11.1,
+                   TransportType.TROLLEYBUS: 11.1,
+                   TransportType.FERRY: 12.78,
+                   TransportType.TRAM: 11.1,
+                   TransportType.TRAIN: 16.66 }
+    
 @unique
 class MobilityType(tuple, Enum):
     """
@@ -183,17 +197,23 @@ class Preferences:
     Encapsulate the user's preferences for path planning,
     e.g.  his/her relative preferrances for the various transporation modes.
 
-    :param criterion: graph edge attribute used as weight (default: distance)
-    :param weights: dictionary of keys of type :py:class:`.MobilityType` related
-        to a preference weight (the highest the value, the preferred the transportation mode)
+    :param criterion: graph edge attribute used as weight (default:distance)
+    :param mobility: dictionary of keys of types :py:class:`.MobilityType`
+        :py:class:`.TransportType` related to a preference weight 
+        (the highest the value, the preferred the transportation mode)
+    :param data: list of types of data to be extracted during plan computation
+        (see :py:class:`city_graph.City.request_plan`), e.g. ['duration','distance']
+    :param average_speeds: dictionary relating :py:class:`.TransportType` to 
+        related average speed, in meter per seconds. Default : :py:data:`.AVERAGE_SPEEDS`
     """
 
-    __slots__ = ("_mobility", "_criterion", "_data")
+    __slots__ = ("_mobility", "_criterion", "_data","_average_speeds")
 
     def __init__(self,
                  criterion=PathCriterion.DISTANCE,
                  mobility=None,
-                 data=None):
+                 data=None,
+                 average_speeds=AVERAGE_SPEEDS):
 
         if criterion not in list(PathCriterion):
             message = str(criterion) + ": "
@@ -204,7 +224,25 @@ class Preferences:
         self._set_mobility(mobility)
         self._criterion = criterion
         self._data = data or []
+        self._average_speeds = average_speeds
 
+    
+    def get_average_speed(self,transport_type):
+        """
+        Returns the average speed for the transportation type
+        
+        :param transport_mode: see :py:class:`.TransportType`
+
+        :raises:
+            :py:class:`KeyError`: if the average speed for the transport type
+            has not been set
+        """
+        return self._average_speeds[transport_type]
+        
+    @property
+    def average_speeds(self):
+        return self._average_speeds
+        
     @property
     def data(self):
         return self._data

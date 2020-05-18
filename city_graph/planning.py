@@ -1,4 +1,4 @@
-from .types import TransportType
+from .types import TransportType,AVERAGE_SPEEDS
 
 
 class PlanStep:
@@ -11,12 +11,15 @@ class PlanStep:
     :param obj target: target location of the step (:py:class:`city_graph.types.Location`)
     :param obj mode: transportation mode used (:py:class:`city_graph.types.TransportType`)
         to go from the start to the target location.
+    :param float duration: expected duration for going from start to target uing the 
+        selected transport type 
     """
 
-    def __init__(self, start, target, mode):
+    def __init__(self, start, target, mode, duration):
         self.start = start
         self.target = target
         self.mode = mode
+        self.duration = duration
 
     def __eq__(self, other):
         assert isinstance(other, self.__class__)
@@ -48,13 +51,79 @@ class Plan:
     :param score: score of the plan, as computed by the shortest path algorithm
     """
 
-    __slots__ = ("_steps", "_valid", "_error", "_score")
+    __slots__ = ("_steps", "_valid", "_error", "_score",
+                 "_start_time","_average_speeds")
 
     def __init__(self, steps=None, score=None):
         self.set_steps(steps)
         self._error = None
         self._score = score
+        self._start_time = None
+        self._average_speeds = AVERAGE_SPEEDS
 
+    def set_average_speed(self,speeds):
+        """
+        Set the average speed for each transportation type.
+        If this function is not called, then the default average
+        speed (see :py:data:`city_graph.types.AVERAGE_SPEEDS`).
+        Average speed are used to compute the current position
+        as returned by :py:meth:`.Plan.where`.
+        See :py:class:`city_graph.types.TransportType`.
+
+        :param speeds: dictionary {TransportType:speed in meters per seconds}
+        """
+        self._average_speeds = types.AVERAGE_SPEED4
+        
+    def _start(self,current_time):
+        # Set a time stamp (in seconds) at which this plan starts to be executed.
+        # This starting time will be used as reference for computing the position
+        # of the person executed then plan (see :py:meth:`.Plan.where`)
+        # current_time: current time in seconds
+        if current_time is None:
+            self._start_time = time.time()
+        else:
+            self._start_time = current_time
+
+    def where(self,current_time=None):
+        """
+        Returns the current location of a person executing the plan,
+        i.e. the location of a person going through all the steps of the plan
+        moving at the average speed of the transport type used.
+        The plan is initialized at the first call to this function.
+        See :py:meth:`.Plan.set_average_speed`.
+        
+        :param int current_time: current time, in seconds. If None (the default),
+        the current machine time is used.
+
+        :return: tuple (finished,(location1,location2,TransportType)), finished being
+        None if the plan is not finished yet or a duration (in second) indicating for how
+        long the plan has been finished. (Location1, location2, TransportType) indicates the
+        current road (or the last road taken in case of finished plan)
+
+        :raises: 
+            :py:class:`ValueError` if attempting to query a status prior to the plan starting time
+
+        """
+        if self._start_time is None:
+            self._start(current_time)
+        if current_time is None:
+            current_time = time.time()
+
+        relative_time = current_time - self._start_time
+        if relative_time<0:
+            raise ValueError("PlanStep: trying to get position at a time prior"
+                             +" to the plan starting time")
+
+        d = 0
+        for step in self._steps:
+            d+= step.duration
+            if relative_time<d:
+                return False,(step.start,step.target,step.mode)
+            
+        step = self._steps[-1]
+        return relative_time-d,(step.start,step.target,step.mode)
+        
+        
     @property
     def score(self):
         return self._score
@@ -164,9 +233,14 @@ def get_plan(topology,
         p.set_error(str(error))
         return p
 
+    def _get_duration(data,mode,preferences):
+        distance = data["distance"]
+        average_speed = preferences.get_average_speed(mode)
+        return distance / average_speed
+        
     # for each segment in the path, creating a plan step, i.e.
     # start location, end location, transportation mode
-    plan_steps = [PlanStep(start, target, mode)
+    plan_steps = [PlanStep(start, target, mode, _get_duration(data,mode,preferences) )
                   for start, target, mode in zip(path, path[1:], data["type"])]
 
     # adding to the steps the extra attributes (e.g. distance, duration)
