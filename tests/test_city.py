@@ -33,17 +33,17 @@ class TestCity(RandomTestCase):
         l0 = Location(LocationType.HOUSEHOLD,
                       (0, 0), name="l0")
         l1 = Location(LocationType.PHARMACY,
-                      (50, 0), name="l1")
+                      (1, 0), name="l1")
         l2 = Location(LocationType.SUPERMARKET,
-                      (100, 0), name="l2")
+                      (2, 0), name="l2")
         l3 = Location(LocationType.PUBLIC_TRANSPORT_STATION,
-                      (500, 20), name="l3")
+                      (3, 0), name="l3")
         l4 = Location(LocationType.PUBLIC_TRANSPORT_STATION,
-                      (10000, -40), name="l4")
+                      (4, 0), name="l4")
         l5 = Location(LocationType.UNIVERSITY,
-                      (3000, 10), name="l5")
+                      (5, 0), name="l5")
         l6 = Location(LocationType.PARK,
-                      (3000, 40), name="l6")
+                      (6, 0), name="l6")
 
         # l7 is standalone without edges (cannot be reached)
         l7 = Location(LocationType.GAMBLING,
@@ -253,30 +253,46 @@ class TestCity(RandomTestCase):
         self.assertIn(LocationType.PUBLIC_TRANSPORT_STATION, locations)
 
     def test_get_closest(self):
-
-        # Right now this is not implemented but we keep the test for later
+        """Test that city succeed in returning closest locations"""
+        
+        # running twice, because distances are buffered, so
+        # results could vary between two iterations
         for _ in range(2):
 
             target = self.locations[0]
 
-            with self.assertRaises(NotImplementedError):
-                closest = self.city.get_closest(target)
-                self.assertTrue(closest == self.locations[1])
+            closest = self.city.get_closest(target)
+            self.assertTrue(closest == self.locations[1])
 
-            with self.assertRaises(NotImplementedError):
-                closest = self.city.get_closest(target, LocationType.SUPERMARKET)
-                self.assertTrue(closest == self.locations[2])
+            closest = self.city.get_closest(target, LocationType.SUPERMARKET)
+            self.assertTrue(closest == self.locations[2])
 
-            with self.assertRaises(NotImplementedError):
-                closest = self.city.get_closest(
-                    target, [
-                        LocationType.PUBLIC_TRANSPORT_STATION, LocationType.UNIVERSITY])
-                self.assertTrue(closest == self.locations[3])
+            closest = self.city.get_closest(
+                target, [
+                    LocationType.PUBLIC_TRANSPORT_STATION, LocationType.UNIVERSITY])
+            self.assertTrue(closest == self.locations[3])
 
-            with self.assertRaises(NotImplementedError):
-                closest = self.city.get_closest(target, LocationType.SCHOOL)
-                self.assertTrue(closest is None)
+            closest = self.city.get_closest(target, LocationType.SCHOOL)
+            self.assertTrue(closest is None)
 
+    def test_get_closest_with_exclusion(self):
+        """
+        Test that city succeed in returning closest locations
+        even when some locations are excluded
+        """
+        # running twice, because distances are buffered, so
+        # results could vary between two iterations
+        for _ in range(2):
+
+            target = self.locations[0]
+
+            closest = self.city.get_closest(target)
+            self.assertTrue(closest == self.locations[1])
+
+            closest = self.city.get_closest(target,excluded_locations=[self.locations[1]])
+            self.assertTrue(closest== self.locations[2])
+
+            
     def test_request_blocking_plan(self):
         """ check the plan returned by request_plan is as expected"""
 

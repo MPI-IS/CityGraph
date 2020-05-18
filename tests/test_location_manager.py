@@ -103,19 +103,6 @@ class TestLocationManager(RandomTestCase):
         self.assertListEqual(node1, [1, 4, 7, 10])
         self.assertListEqual(node2, [2, 5, 8])
 
-    def test_compute_all_distances(self):
-        self.lm.compute_all_distances()
-        for l1, l2 in combinations(self._locations, 2):
-            self.assertAlmostEqual(self.lm.get_distance(l1, l2), _Location.distance(l1, l2))
-            self.assertAlmostEqual(self.lm.get_distance(l1, l2), self.lm.get_distance(l2, l1))
-
-        # Distances are not saved twice - should be C(k,n) + n (with replacement)
-        n = len(self._locations)
-        k = 2
-        num_distances = factorial(n) / (factorial(n - k) * factorial(k)) + n
-        self.assertEqual(len(self.lm.get_all_distances()), num_distances)
-
     def test_get_closest(self):
         random_loc = self.rng.choice(self._locations)
-        with self.assertRaises(NotImplementedError):
-            self.lm.get_closest(random_loc, "extra")
+        self.lm.get_closest(random_loc, "extra")
