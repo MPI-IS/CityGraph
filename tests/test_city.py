@@ -90,7 +90,7 @@ class TestCity(RandomTestCase):
                 {'distance': distance, 'duration': duration}
             )
             # creating the expected (ground truth) plan
-            plan_step = PlanStep(loc1, loc2, mode)
+            plan_step = PlanStep(loc1, loc2, mode, duration)
             plan_step.duration = duration
             plan_step.distance = distance
             plan_steps.append(plan_step)
@@ -511,6 +511,55 @@ class TestCity(RandomTestCase):
         # should be less than 2 seconds (1 job is 1 second)
         self.assertTrue((end_time - start_time) < TOTAL_TIME_CHECK)
 
+
+    def test_plan_durations(self):
+        """Check the where method of Plan"""
+        l0,l1,l2,l3 = self.locations[:4]
+        step1 = PlanStep(l0,l1,TransportType.ROAD,60)
+        step2 = PlanStep(l1,l2,TransportType.BUS,30)
+        step3 = PlanStep(l2,l3,TransportType.TRAIN,20)
+        plan = Plan([step1,step2,step3])
+        starting_time = 100
+        # checking unfinished plans
+        # on first segment
+        finished,(r1,r2,mode) = plan.where(100)
+        self.assertEqual(r1,l0)
+        self.assertEqual(r2,l1)
+        self.assertFalse(finished)
+        self.assertEqual(mode,TransportType.ROAD)
+        # still on first segment
+        finished,(r1,r2,mode) = plan.where(starting_time+20)
+        self.assertEqual(r1,l0)
+        self.assertEqual(r2,l1)
+        self.assertFalse(finished)
+        self.assertEqual(mode,TransportType.ROAD)
+        # on second segment
+        finished,(r1,r2,mode) = plan.where(starting_time+70)
+        self.assertEqual(r1,l1)
+        self.assertEqual(r2,l2)
+        self.assertFalse(finished)
+        self.assertEqual(mode,TransportType.BUS)
+        # on third segment
+        finished,(r1,r2,mode) = plan.where(starting_time+110)
+        self.assertEqual(r1,l2)
+        self.assertEqual(r2,l3)
+        self.assertFalse(finished)
+        self.assertEqual(mode,TransportType.TRAIN)
+        # check finished plan
+        finished,(r1,r2,mode) = plan.where(starting_time+130)
+        self.assertEqual(r1,l2)
+        self.assertEqual(r2,l3)
+        self.assertEqual(finished,20)
+        self.assertEqual(mode,TransportType.TRAIN)
+        # check invalid query time
+        thrown=False
+        try :
+            plan.where(starting_time-1)
+        except ValueError:
+            thrown = True
+        self.assertTrue(thrown)
+        
+        
     @patch.object(MultiEdgeUndirectedTopology, 'add_energy_based_edges')
     def test_create_connections_by_energy(self, add_mocked):
         """Checks the algo creating connections by energy."""
@@ -524,3 +573,4 @@ class TestCity(RandomTestCase):
 
         self.city.create_central_connections(EDGE_TYPE)
         self.assertTrue(add_mocked.called)
+
