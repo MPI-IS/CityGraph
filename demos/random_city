@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+import random
+import time
+from matplotlib import pyplot
+from city_graph.city import City, DEFAULT_LOCATION_DISTRIBUTION
+from city_graph import city_io
+from city_graph.types import LocationType, Preferences, MobilityType,TransportType
+from city_graph.plotter import plot_city
+
+city_name = "DemoCity"
+folder = "/tmp/"
+max_iterations=100
+connections_per_step=5
+data=["distance"]
+#data=[]
+nb_processes=1
+
+if city_io.is_saved(city_name,folder):
+    demo = city_io.load(city_name,folder)
+    print("loaded city",demo.name)
+else :
+    demo = City.build_random(city_name, DEFAULT_LOCATION_DISTRIBUTION,
+                             create_network=True,
+                             nb_processes=nb_processes,
+                             max_iterations=max_iterations,
+                             connections_per_step=connections_per_step)
+    energy_args = {"connection_types":list(TransportType)}
+    demo.compute_distances()
+    path = city_io.save(demo,folder,overwrite=True)
+    print("created city",demo.name, "saved in",path)    
+
+locations = list(demo.get_locations())
+print(demo.name,"has",len(locations),"locations")
+plot_city(demo)
+pyplot.show()
+
+#preferences = Preferences(data=["distance"])
+#preferences = Preferences(mobility={TransportType.WALK:1.0,
+#                                    TransportType.ROAD:1.0},
+#                          data=["distance"])
+preferences = Preferences(mobility={TransportType.BUS:0.3,
+                                    TransportType.TRAIN:0.3,
+                                    TransportType.WALK:0.3},
+                          data=data)
+
+
+requests = []
+for _ in range(1000):
+    location1 = random.choice(locations)
+    location2 = random.choice(locations)
+    print("plan from",location1,"to",location2)
+    requests.append((location1,location2,preferences))
+
+time_start = time.time()
+plans = demo.compute_plans(requests)
+time_end = time.time()
+nb_valids = 0
+for request,plan in zip(requests,plans):
+    if plan.is_valid():
+        nb_valids+=1
+        print()
+        print(request)
+        print(plan)
+
+print("\nNB VALID PLANS:",nb_valids)
+print("\nduration:",time_end-time_start)
+    
+

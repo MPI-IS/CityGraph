@@ -4,6 +4,7 @@ Utils
 
 Module with different utilities needed for the package.
 """
+import collections
 import string
 import time
 
@@ -49,6 +50,20 @@ def distance(long1, lat1, long2, lat2):
     a = sin(delta_lat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(delta_long / 2) ** 2
     d = 2 * atan2(sqrt(a), sqrt(1 - a))
     return d * EARTH_RADIUS_CM
+
+
+def group_locations_by_type(locations):
+    """
+    Group a list of locations in a dictionary based their type.
+
+    :note: Used mostly for reporting and plotting.
+    """
+
+    # TODO: This should probably not be here but instead in the LocationManager/Plotter
+    locations_by_type = collections.defaultdict(list)
+    for location in locations:
+        locations_by_type[location.location_type].append(location)
+    return locations_by_type
 
 
 class RandomGenerator(RandomState):
