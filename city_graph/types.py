@@ -84,6 +84,15 @@ class LocationType(str, Enum):
             * https://wiki.openstreetmap.org/wiki/Key:building
     """
 
+    # This is a special case: sometimes we want to convey to the user
+    # that there is an important geographical point that does not
+    # correspond to a venue. It can be a cross-road or a waypoint
+    # along the path. In this case we choose constructing a special
+    # non-location with the type below.
+    # NOTE: By convention, those are allowed to be only constructed in
+    #       runtime and we NEVER put those inside a city.
+    NONE = -1
+
     # Sustenance section: reduced down to two types depending on
     # whether you want to eat or to drink.
     BAR = 0

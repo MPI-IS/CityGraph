@@ -33,9 +33,19 @@ class PlanStep:
 
     def __str__(self):
         attrs = vars(self)
-        s = "PlanStep:\n\t"
-        return s + "\n\t".join([attr + ": " + str(getattr(self, attr))
-                                for attr in attrs])
+        output = "PlanStep:\n"
+        output += "\tmode: {}\n".format(self.mode)
+        start = (
+            set(str(loc) for loc in self.start)
+            if isinstance(self.start, list)
+            else str(self.start))
+        target = (
+            set(str(loc) for loc in self.target)
+            if isinstance(self.target, list)
+            else str(self.target))
+        output += "\tstart: {}\n".format(start)
+        output += "\ttarget: {}\n".format(target)
+        return output
 
 
 class Plan:
