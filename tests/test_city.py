@@ -568,13 +568,8 @@ class TestCity(RandomTestCase):
         self.assertEqual(finished,20)
         self.assertEqual(mode,TransportType.TRAIN)
         # check invalid query time
-        thrown=False
-        try :
+        with self.assertRaises(ValueError):
             plan.where(starting_time-1)
-        except ValueError:
-            thrown = True
-        self.assertTrue(thrown)
-        
         
     @patch.object(MultiEdgeUndirectedTopology, 'add_energy_based_edges')
     def test_create_connections_by_energy(self, add_mocked):

@@ -214,7 +214,8 @@ class Plan:
 def get_plan(topology,
              start_location,
              target_location,
-             preferences):
+             preferences,
+             locations_by_nodes):
     """
     Compute ap plan that describes how to go from the start to the target location
     under the provided user preferences.
@@ -249,10 +250,12 @@ def get_plan(topology,
         average_speed = preferences.get_average_speed(mode)
         duration = distance / average_speed
         return duration
-        
+
     # for each segment in the path, creating a plan step, i.e.
     # start location, end location, transportation mode
-    plan_steps = [PlanStep(start, target, mode, _get_duration(distance,mode,preferences) )
+    plan_steps = [PlanStep(locations_by_nodes[start],
+                           locations_by_nodes[target],
+                           mode, _get_duration(distance,mode,preferences) )
                   for start, target, mode, distance in zip(path, path[1:],
                                                            data["type"], data["distance"])]
 

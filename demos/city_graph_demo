@@ -19,17 +19,13 @@ At each time step, the information about which persons are at the same place
 is displayed.
 The city is either synthetic, or created based on real data downloaded from 
 OpenStreetMap
-This demo does not attempt to be accurate in any way, its sole
-purpose is to complement the API documentation with an example 
-of the usage of CityGraph's API.
+This demo does not attempt to be an accurate model of anything, its sole
+purpose is to complement CityGraph's API documentation with an usage example.
 
 To run it:
 
 pip install CityGraph
 city_graph_demo
-
-
-
 """
 
 # configuration that will be used to create the city

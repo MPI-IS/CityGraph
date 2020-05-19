@@ -165,7 +165,8 @@ class City:
         "_locations_by_node"
     )
 
-    def __init__(self, name, locations, topology, nb_processes=1):
+    def __init__(self, name, locations, topology, nb_processes=1,
+                 location_cls=Location):
 
         self.name = name
 
@@ -453,8 +454,8 @@ class City:
         plan = get_plan(self._topology,
                         start,
                         target,
-                        preferences)
-        self._from_nodes_to_locations(plan)
+                        preferences,
+                        self._locations_by_node)
         return plan
 
     def _non_blocking_plan(self,
@@ -470,7 +471,8 @@ class City:
         # of graph
         result = self._pool.apply_async(
             get_plan, args=(
-                self._topology, start, target, preferences,))
+                self._topology, start, target,
+                preferences,self._locations_by_node))
         plan_id = self._next_plan_id()
         self._plans[plan_id] = result
         return plan_id
@@ -533,7 +535,7 @@ class City:
                 get_plan,
                 args=(
                     self._topology,
-                    *request,)) for request in requests]
+                    *request,self._locations_by_node)) for request in requests]
         plans = [r.get() for r in results]
         return plans
 
@@ -591,7 +593,6 @@ class City:
             return None
         plan = result.get()
         del self._plans[plan_id]
-        self._locations_manager.from_nodes_to_locations(plan)
         return plan
 
     def retrieve_plans(self, plan_ids):
