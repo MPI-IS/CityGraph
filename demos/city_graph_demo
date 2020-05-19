@@ -34,7 +34,7 @@ city_graph_demo
 
 # configuration that will be used to create the city
 class Configuration:
-    city_name = "DemoCity" 
+    city_name = "Tuebingen" 
     folder = "/tmp/" 
     max_iterations = None  
     connections_per_step = 5 
@@ -130,6 +130,7 @@ class Person:
         excluded = []
         loc = loc2
         while not valid_plan:
+            print("DEMO",loc1,"|||",loc2,"|||",loc)
             plan = city.request_plan(loc1,
                                      loc,
                                      self.preferences)
@@ -273,7 +274,7 @@ def _create_random_person(rng):
 
     # the home location of the person
     home = rng.choice(city.get_locations_by_types(LocationType.HOUSEHOLD))
-
+    
     # the work location of the person
     work = rng.choice(city.get_locations_by_types(LocationType.OFFICE))
 
@@ -287,7 +288,9 @@ def _create_random_person(rng):
                                                   LocationType.RESTAURANT))
     leisure_places = list(itertools.chain.from_iterable(leisure_places.values()))
     leisure = rng.choice(leisure_places)
-    
+
+    work,home,leisure = [None]*3
+        
     # working hours, between 5 and 10 hours
     working_hours = rng.choice(range(5, 10)) * 3600
 
@@ -313,8 +316,10 @@ if __name__ == "__main__":
 
     # creating 1000 random virtual persons
     nb_persons = 1000
+    print("creating persons...")
     persons = [_create_random_person(random_generator) for _ in range(nb_persons)]
-
+    print("done")
+    
     # running 1 days of simulation of this simplified world:
     # everybody : commute from home to work
     #             stay at work for the duration of their working hours

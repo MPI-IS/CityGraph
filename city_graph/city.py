@@ -58,9 +58,17 @@ class LocationManager:
         if not plan.is_valid():
             return
         for step in plan.steps():
-            step.start = self._locations_by_node[step.start][0]
-            step.target = self._locations_by_node[step.target][0]
-
+            try:
+                step.start = self._locations_by_node[step.start][0]
+            except KeyError:
+                # to do: set real location
+                step.start = Location(LocationType.WAYPATH,(0,0))
+            try:
+                step.target = self._locations_by_node[step.target][0]
+            except KeyError:
+                # to do: set real location
+                step.target = Location(LocationType.WAYPATH,(0,0))
+                
     @property
     def location_types(self):
         """Returns all location types."""

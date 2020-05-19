@@ -133,6 +133,9 @@ class LocationType(str, Enum):
 
     CHURCH = 22
 
+    # Plan way path (e.g. intersection)
+    WAYPATH = 23
+    
 
 class BaseEnumMapping(UserDict):
     """
