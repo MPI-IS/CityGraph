@@ -1,10 +1,12 @@
+from collections import defaultdict
 from itertools import combinations_with_replacement
 from itertools import chain
 import multiprocessing
 
 from .planning import get_plan, Plan
 from .topology import MultiEdgeUndirectedTopology
-from .types import LocationType, Location, TransportType, LocationDistribution
+from .types import (
+    LocationType, Location, Point, TransportType, LocationDistribution)
 from .utils import RandomGenerator, distance
 
 
@@ -12,6 +14,20 @@ DEFAULT_LOCATION_DISTRIBUTION = LocationDistribution(
     household=295, office=150, school=3, university=2,
     supermarket=25, retail=20, sports_centre=5, park=5,
     restaurant=5, bar=5)
+
+
+def group_locations_by(locations, attribute):
+    """
+    Group locations into a dictionary of lists based on an attribute.
+
+    :param list locations: A list of locations.
+    :param str attribute: Attribute name.
+    """
+    grouped = defaultdict(list)
+    for location in locations:
+        value = getattr(location, attribute)
+        grouped[value].append(location)
+    return grouped
 
 
 class LocationManager:
@@ -22,8 +38,8 @@ class LocationManager:
     :param func fdistance: Function used to calculate distances
     """
 
-    __slots__ = ("_distances", "_locations", "_func_distance", "_locations_by_node")
-
+    __slots__ = ("_distances", "_locations", "_func_distance")
+    
     def __init__(self, locations, fdistance=distance):
 
         # Function used to calculate distances
@@ -32,34 +48,8 @@ class LocationManager:
         # saving all distances computation, so they not done twice
         self._distances = {}
 
-        # mapping between nodes and locations
-        self._locations_by_node = {}
-
         # Save locations by type
-        self._locations = {}
-        for loc in locations:
-
-            # Save location by node
-            try:
-                self._locations_by_node[loc.node].append(loc)
-            except KeyError:
-                self._locations_by_node[loc.node] = [loc]
-
-            # Save location by type
-            try:
-                self._locations[loc.location_type].append(loc)
-            except KeyError:
-                self._locations[loc.location_type] = [loc]
-
-    def from_nodes_to_locations(self, plan):
-        # plan: instance of planning.Plan.
-        # plan is generated using nodes, but user will need
-        # locations
-        if not plan.is_valid():
-            return
-        for step in plan.steps():
-            step.start = self._locations_by_node[step.start][0]
-            step.target = self._locations_by_node[step.target][0]
+        self._locations = group_locations_by(locations, "location_type")
 
     @property
     def location_types(self):
@@ -169,10 +159,14 @@ class City:
     :param int nb_processes: number of processes to use (when computing shortest paths)
     """
 
-    __slots__ = ("name", "_topology", "_pool", "_nb_processes",
-                 "_plans", "_plan_id", "_locations_manager")
+    __slots__ = (
+        "name", "_topology", "_pool", "_nb_processes",
+        "_plans", "_plan_id", "_locations_manager", "_location_cls",
+        "_locations_by_node"
+    )
 
-    def __init__(self, name, locations, topology, nb_processes=1):
+    def __init__(self, name, locations, topology, nb_processes=1,
+                 location_cls=Location):
 
         self.name = name
 
@@ -192,6 +186,15 @@ class City:
 
         # used for attributing a unique new id to each plan
         self._plan_id = 0
+
+        # remember the location class. This will come handy.
+        self._location_cls = location_cls
+
+        # Build the lookup dictionary. XXX: It used to inside the
+        # LocationManager, but it becomes too aware about the location
+        # class and the topology. Probably it should be merged with
+        # the city.
+        self._locations_by_node = group_locations_by(locations, "node")
 
     def __del__(self):
         self._pool.terminate()
@@ -451,8 +454,8 @@ class City:
         plan = get_plan(self._topology,
                         start,
                         target,
-                        preferences)
-        self._locations_manager.from_nodes_to_locations(plan)
+                        preferences,
+                        self._locations_by_node)
         return plan
 
     def _non_blocking_plan(self,
@@ -468,7 +471,8 @@ class City:
         # of graph
         result = self._pool.apply_async(
             get_plan, args=(
-                self._topology, start, target, preferences,))
+                self._topology, start, target,
+                preferences,self._locations_by_node))
         plan_id = self._next_plan_id()
         self._plans[plan_id] = result
         return plan_id
@@ -531,7 +535,7 @@ class City:
                 get_plan,
                 args=(
                     self._topology,
-                    *request,)) for request in requests]
+                    *request,self._locations_by_node)) for request in requests]
         plans = [r.get() for r in results]
         return plans
 
@@ -589,7 +593,6 @@ class City:
             return None
         plan = result.get()
         del self._plans[plan_id]
-        self._locations_manager.from_nodes_to_locations(plan)
         return plan
 
     def retrieve_plans(self, plan_ids):
@@ -614,3 +617,38 @@ class City:
                 self._locations_manager.from_nodes_to_locations(plan)
                 plans[plan_id] = plan
         return plans
+
+    def _from_nodes_to_locations(self, plan):
+        """
+        Reframe the plan in terms of locations.
+
+        The plan as returned by `retrieve_plans` is constructed in
+        terms of topological nodes.  The user is cearly more
+        interested in the locations that they might see along the way.
+        This function looks up the locations corresponding to the
+        nodes and puts them into the plan.
+        """
+        if not plan.is_valid():
+            return
+
+        for step in plan.steps():
+            start_locations = self._locations_by_node.get(step.start)
+            target_locations = self._locations_by_node.get(step.target)
+
+            if not start_locations:
+                start_locations = [
+                    self._location_cls(
+                        LocationType.NONE,
+                        node=step.start,
+                        coordinates=Point())
+                ]
+            if not target_locations:
+                target_locations = [
+                    self._location_cls(
+                        LocationType.NONE,
+                        node=step.target,
+                        coordinates=Point())
+                ]
+
+            step.start = start_locations
+            step.target = target_locations
