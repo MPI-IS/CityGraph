@@ -23,4 +23,5 @@ setup(name="city_graph",
       url="https://github.com/MPI-IS/CityGraph.git",
       author="Jean Claude Passy, Ivan Oreshnikov, Vincent Berenz",
       install_requires=["networkx"],
+      scripts=["demos/city_graph_demo"],
       )

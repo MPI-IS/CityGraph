@@ -2,7 +2,7 @@ from math import pi
 from time import sleep
 
 from city_graph.utils import RandomGenerator, \
-    get_current_time_in_ms, distance, EARTH_RADIUS_CM
+    get_current_time_in_ms, distance, EARTH_RADIUS_METERS
 
 from .fixtures import RandomTestCase
 
@@ -36,16 +36,16 @@ class TestUtilities(RandomTestCase):
         self.assertAlmostEqual(distance(p0x, p0y, p0x, p0y), 0)
         # Precision to the cm
         self.assertAlmostEqual(distance(p0x, p0y, pNx, pNy),
-                               pi * EARTH_RADIUS_CM / 2,
+                               pi * EARTH_RADIUS_METERS / 2,
                                places=0)
         self.assertAlmostEqual(distance(p0x, p0y, pSx, pSy),
-                               pi * EARTH_RADIUS_CM / 2,
+                               pi * EARTH_RADIUS_METERS / 2,
                                places=0)
         self.assertAlmostEqual(distance(pNx, pNy, pSx, pSy),
-                               pi * EARTH_RADIUS_CM,
+                               pi * EARTH_RADIUS_METERS,
                                places=0)
         self.assertAlmostEqual(distance(p0x, p0y, p1x, p1y),
-                               pi * EARTH_RADIUS_CM,
+                               pi * EARTH_RADIUS_METERS,
                                places=0)
 
 

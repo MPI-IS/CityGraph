@@ -307,12 +307,12 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         for attr in edge_data:
             try:
                 temp_list = [
-                    self.get_edges(u, v, [t])[0][attr]
+                    list(self.get_edges(u, v, [t]).values())[0][attr]
                     for u, v, t in zip(
                         path, path[1:], data[self.EDGE_TYPE])]
                 data[attr] = np.array(temp_list)
             except KeyError:
-                raise KeyError("Some nodes do not have the attribute '%s'." % attr)
+                raise KeyError("Some edges do not have the attribute '%s'." % attr)
 
         return (score, path, data)
 

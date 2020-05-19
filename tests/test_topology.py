@@ -579,6 +579,30 @@ class TestGetShortestPath(RandomTestCase):
         self.assertAlmostEqual(score, new_expected_score)
         self.assertListEqual(path, [self.node_start, self.node_end])
 
+    def test_return_additional_edge_data_many_edges(self):
+        """
+        Checks that additional edge data is returned properly if they are many edges.
+
+        :note: bug fix (see vberenz/city_demo)
+        """
+        extra_data = self.rng.rand_str()
+
+        edge_type1 = self.rng.rand_str()
+        attrs1 = {self.weight_name: self.rng(), extra_data: self.rng()}
+        self.top.add_edge(self.node_start, self.node_end, edge_type1, **attrs1)
+
+        edge_type2 = self.rng.rand_str()
+        attrs2 = {self.weight_name: self.rng(), extra_data: self.rng()}
+        self.top.add_edge(self.node_start, self.node_end, edge_type2, **attrs2)
+
+        _, _, d1 = self.top.get_shortest_path(self.node_start, self.node_end,
+                                              self.weight_name, {edge_type1: None}, [extra_data])
+        _, _, d2 = self.top.get_shortest_path(self.node_start, self.node_end,
+                                              self.weight_name, {edge_type2: None}, [extra_data])
+
+        self.assertEqual(d1[extra_data], attrs1[extra_data])
+        self.assertEqual(d2[extra_data], attrs2[extra_data])
+
 
 class TestEnergyBasedGraph(RandomTestCase):
     """Class testing the energy graph builder."""
@@ -655,7 +679,7 @@ class TestEnergyBasedGraph(RandomTestCase):
         edge_type2 = self.rng.rand_str()
         top3.add_energy_based_edges([edge_type2], 1, 1, 1e4, 1, self.rng)
         # JC: This does not work as well as I expected
-        #_ = top3.get_edges(n2, n1, [edge_type2])
+        # _ = top3.get_edges(n2, n1, [edge_type2])
 
 
 class TestCentroidsBasedGraph(RandomTestCase):
@@ -744,14 +768,14 @@ class TestCentroidsBasedGraph(RandomTestCase):
         top.add_edges_between_centroids([edge_type3], len(centers), self.rng)
         # This is a <= because we calculate a minimum_spanning_tree
         new_edges_counter = 0
-        #print("centers: ", centers)
+        # print("centers: ", centers)
         for a, b in combinations(centers, 2):
             with suppress(KeyError):
-                #print("a=", a, "b=", b)
+                # print("a=", a, "b=", b)
                 _ = top.get_edges(a, b, [edge_type3])
                 # print(_)
                 new_edges_counter += 1
 
         # TODO: this does not work...
         # Centroids are not all in the list of centers...
-        #self.assertEqual(top.num_of_edges, num_edges + new_edges_counter)
+        # self.assertEqual(top.num_of_edges, num_edges + new_edges_counter)

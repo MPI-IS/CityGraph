@@ -1,3 +1,4 @@
+import time
 from .types import TransportType,AVERAGE_SPEEDS
 
 
@@ -84,7 +85,7 @@ class Plan:
         else:
             self._start_time = current_time
 
-    def where(self,current_time=None):
+    def where(self,current_time):
         """
         Returns the current location of a person executing the plan,
         i.e. the location of a person going through all the steps of the plan
@@ -92,16 +93,17 @@ class Plan:
         The plan is initialized at the first call to this function.
         See :py:meth:`.Plan.set_average_speed`.
         
-        :param int current_time: current time, in seconds. If None (the default),
+        :param int current_time: current time, in seconds. If None,
         the current machine time is used.
 
-        :return: tuple (finished,(location1,location2,TransportType)), finished being
+        :returns: tuple (finished,(location1,location2,TransportType)), finished being
         None if the plan is not finished yet or a duration (in second) indicating for how
         long the plan has been finished. (Location1, location2, TransportType) indicates the
         current road (or the last road taken in case of finished plan)
 
         :raises: 
-            :py:class:`ValueError` if attempting to query a status prior to the plan starting time
+            :py:class:`ValueError` if attempting to query a status 
+            prior to the plan starting time
 
         """
         if self._start_time is None:
@@ -233,15 +235,16 @@ def get_plan(topology,
         p.set_error(str(error))
         return p
 
-    def _get_duration(data,mode,preferences):
-        distance = data["distance"]
+    def _get_duration(distance,mode,preferences):
         average_speed = preferences.get_average_speed(mode)
-        return distance / average_speed
+        duration = distance / average_speed
+        return duration
         
     # for each segment in the path, creating a plan step, i.e.
     # start location, end location, transportation mode
-    plan_steps = [PlanStep(start, target, mode, _get_duration(data,mode,preferences) )
-                  for start, target, mode in zip(path, path[1:], data["type"])]
+    plan_steps = [PlanStep(start, target, mode, _get_duration(distance,mode,preferences) )
+                  for start, target, mode, distance in zip(path, path[1:],
+                                                           data["type"], data["distance"])]
 
     # adding to the steps the extra attributes (e.g. distance, duration)
     # also returned by the topology

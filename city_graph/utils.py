@@ -11,8 +11,8 @@ import time
 from math import sin, cos, sqrt, atan2, radians
 from numpy.random import RandomState
 
-# Mean Earth radius in cm.
-EARTH_RADIUS_CM = 6371. * 1e5
+# Mean Earth radius in meters.
+EARTH_RADIUS_METERS = 6.371 * 1e6
 
 
 def get_current_time_in_ms():
@@ -32,7 +32,7 @@ def distance(long1, lat1, long2, lat2):
     :param float lat1: latitude of the first point in degrees.
     :param float long2: longitude of the second point in degrees.
     :param float lat2: latitude of the second point in degrees.
-    :returns: distance in cm.
+    :returns: distance in meters.
     :rtype: float
 
     :note: We approximate the Earth as a sphere and use the Haversine formula.
@@ -49,7 +49,7 @@ def distance(long1, lat1, long2, lat2):
 
     a = sin(delta_lat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(delta_long / 2) ** 2
     d = 2 * atan2(sqrt(a), sqrt(1 - a))
-    return d * EARTH_RADIUS_CM
+    return d * EARTH_RADIUS_METERS
 
 
 def group_locations_by_type(locations):

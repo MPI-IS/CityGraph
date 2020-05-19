@@ -115,11 +115,11 @@ class LocationType(str, Enum):
     GAMBLING = 10
     NIGHTCLUB = 11
     THEATER = 12
-    SOCIAL_CENTRE = 13  # spelling from OSM
+    SOCIAL_CENTER = 13  # spelling from OSM
 
     # Leisure:
     BEACH = 14
-    SPORTS_CENTRE = 15
+    SPORTS_CENTER = 15
     PARK = 16
     STADIUM = 17
 
@@ -201,10 +201,11 @@ class Preferences:
     :param mobility: dictionary of keys of types :py:class:`.MobilityType`
         :py:class:`.TransportType` related to a preference weight 
         (the highest the value, the preferred the transportation mode)
-    :param data: list of types of data to be extracted during plan computation
-        (see :py:class:`city_graph.City.request_plan`), e.g. ['duration','distance']
     :param average_speeds: dictionary relating :py:class:`.TransportType` to 
         related average speed, in meter per seconds. Default : :py:data:`.AVERAGE_SPEEDS`
+    :param data: list of types of data to be extracted during plan computation
+        (see :py:class:`city_graph.City.request_plan`), e.g. ['duration','distance'].
+        default: ['distance']
     """
 
     __slots__ = ("_mobility", "_criterion", "_data","_average_speeds")
@@ -212,8 +213,9 @@ class Preferences:
     def __init__(self,
                  criterion=PathCriterion.DISTANCE,
                  mobility=None,
-                 data=None,
-                 average_speeds=AVERAGE_SPEEDS):
+                 average_speeds=AVERAGE_SPEEDS,
+                 data=["distance"]):
+
 
         if criterion not in list(PathCriterion):
             message = str(criterion) + ": "

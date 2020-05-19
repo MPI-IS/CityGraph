@@ -1,4 +1,5 @@
 from itertools import combinations_with_replacement
+from itertools import chain
 import multiprocessing
 
 from .planning import get_plan, Plan
@@ -117,50 +118,46 @@ class LocationManager:
         except KeyError:
             return self._distances[(l2, l1)]
 
-    # fills _distances will all distances values, so no distance
-    # will ever need to be computed again.
-    # TODO: JC I do not think this is needed
-    def compute_all_distances(self):
-        """Calculate and save all distances."""
+    def get_closest(self, location,
+                    location_types, excluded_locations=[]):
+        """
+        Returns the location the closest to location, which is of one 
+        of the specified authorized type, and not excluded.
+        Note: this does not return the closest location in terms of shortest
+        path. Uses distances as the crows fly.
+        :param location: target location
+        :param location_types: list of authorized type
+        :param excluded_location: list of excluded locations (default: empty list)
 
-        # Itertools is so cool!
-        for l1, l2 in combinations_with_replacement(sum(self._locations.values(), []), 2):
-            self.get_distance(l1, l2)
-
-    # returns the location of one of the specified type
-    # closest to location
-    # TODO: fix implementation and test
-    def get_closest(self, location, location_types):
-        # Right now we raise an error
-        raise NotImplementedError
-
+        :returns: the location that is the closest to location (which is of
+        the authorized type and not excluded)
+        """
+        
+        # creating the list of candidate locations
         if location_types is None:
-            locations = self._locations
-            index = 1
-            # if there is one entry, then it is location,
-            # so the method would return itself
-            if len(locations) <= 1:
-                return None
-        else:
-            if isinstance(location_types, str):
-                location_types = [location_types]
-            locations = []
-            for location_type in location_types:
-                locations += self.get_locations(location_type)
-            # index of the closest location in the sorted array
-            index = 0
-            # location is part of the candidate location ...
-            if location.location_type in location_types:
-                # so index 0 will be location, so returning the next one
-                index = 1
-                if len(locations) < 2:
-                    return None
-            elif len(locations) < 1:
-                # there is only one entry in the list, so location itself
-                return None
-        return sorted(locations,
-                      key=lambda l: self.get_distance(l, location))[index]
+            location_types = self.location_types
+        elif isinstance(location_types, str):
+            location_types = [location_types]
+        candidates = list(chain.from_iterable([self._get_locations(location_type)
+                                               for location_type in location_types]))
 
+        # to avoid returning location (which is indeed the closest location
+        # to itself)
+        excluded_locations.append(location)
+
+        # lower indexes will be closest location
+        sorted_candidates = sorted(candidates,
+                                   key=lambda l: self.get_distance(l, location))
+
+        # the closest is the candidate with the lowest
+        # index which is not in excluded
+        for candidate in sorted_candidates:
+            if candidate not in excluded_locations:
+                return candidate
+
+        # not a single location that is not excluded
+        return None
+        
 
 class City:
     """
@@ -376,6 +373,14 @@ class City:
         self._plan_id += 1
         return self._plan_id
 
+    def get_distance(self,location1,location2):
+        """
+        Returns the "as the crows fly" distance between 
+        location1 and location2, given that location1 and location2
+        are part of the city. Distance in meters.
+        """
+        return self._locations_manager.get_distance(location1,location2)
+        
     def get_locations(self, location_types=LocationType):
         """
         Returns an iterator over the locations hosted by the city, possibly filtering by
@@ -419,21 +424,23 @@ class City:
         """
         self._locations_manager.compute_all_distances()
 
-    def get_closest(self, location, location_types=None):
+    def get_closest(self, location, location_types=None,
+                    excluded_locations=[]):
         """
-        Returns the closest location. Note: this method will reuse pre - computed
-        distances if: py: meth: `.compute_distances` has been previously called.
-        Limitation: this method uses the coordinates of the position, and is
-        not based on shortest path.
+        Returns the location the closest to location, which is of one 
+        of the specified authorized type, and not excluded.
+        Note: this does not return the closest location in terms of shortest
+        path. Uses distances as the crows fly.
+        :param location: target location
+        :param location_types: list of authorized type
+        :param excluded_locations: list of excluded locations (default: empty list)
 
-        : param obj location: the location
-        : param location_types: the location_type or a list of location_types
-               used to generate the list of candidate locations(default: None, i.e.
-               any type)
-        : returns: the closest location of one of the specified type, or an
-               None of no such location exists.
+        :returns: the location that is the closest to location (which is of
+        the authorized type and not excluded)
         """
-        return self._locations_manager.get_closest(location, location_types)
+        return self._locations_manager.get_closest(location, location_types,
+                                                   excluded_locations)
+
 
     def _blocking_plan(self,
                        start,
