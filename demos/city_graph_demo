@@ -126,7 +126,6 @@ class Person:
         excluded = []
         loc = loc2
         while not valid_plan:
-            print("DEMO",loc1,"|||",loc2,"|||",loc)
             plan = city.request_plan(loc1,
                                      loc,
                                      self.preferences)
@@ -270,7 +269,7 @@ def _create_random_person(rng):
 
     # the home location of the person
     home = rng.choice(city.get_locations_by_types(LocationType.HOUSEHOLD))
-    
+
     # the work location of the person
     work = rng.choice(city.get_locations_by_types(LocationType.OFFICE))
 
@@ -285,8 +284,6 @@ def _create_random_person(rng):
     leisure_places = list(itertools.chain.from_iterable(leisure_places.values()))
     leisure = rng.choice(leisure_places)
 
-    work,home,leisure = [None]*3
-        
     # working hours, between 5 and 10 hours
     working_hours = rng.choice(range(5, 10)) * 3600
 

@@ -1,4 +1,5 @@
 import time
+from functools import partial
 from .types import TransportType,AVERAGE_SPEEDS
 
 
@@ -253,11 +254,33 @@ def get_plan(topology,
 
     # for each segment in the path, creating a plan step, i.e.
     # start location, end location, transportation mode
-    plan_steps = [PlanStep(locations_by_nodes[start],
-                           locations_by_nodes[target],
-                           mode, _get_duration(distance,mode,preferences) )
-                  for start, target, mode, distance in zip(path, path[1:],
-                                                           data["type"], data["distance"])]
+    def _get_location(start_location,
+                      target_location,
+                      locations_by_nodes,
+                      size,
+                      first,
+                      node,
+                      index):
+        if first and index==0:
+            return start_location
+        if (not first) and index==size:
+            return target_location
+        return locations_by_nodes[node][0]
+
+    get_location_ = partial(_get_location,
+                            start_location,
+                            target_location,
+                            locations_by_nodes,
+                            len(path)-1)
+        
+    plan_steps = [ PlanStep(get_location_(True,start,index),
+                            get_location_(False,target,index),
+                            mode,
+                            _get_duration(distance,mode,preferences) )
+                   for index,(start, target, mode, distance)
+                   in enumerate(zip(path, path[1:],
+                                    data["type"],
+                                    data["distance"])) ]
 
     # adding to the steps the extra attributes (e.g. distance, duration)
     # also returned by the topology
