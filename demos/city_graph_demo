@@ -11,7 +11,7 @@ from city_graph.types import LocationType, TransportType, PathCriterion
 
 
 """
-In this demo, 1000 simulated person move for a day in a city based on a 
+In this demo, 1000 simulated persons move for a day in a city based on a 
 simplified schedule (commute from home to work, stay at work, 
 commute to a "leisure" location, enjoy for a while, then commute back home).
 A person is modeled using a basic state machine.
@@ -29,16 +29,25 @@ city_graph_demo
 """
 
 # configuration that will be used to create the city
-class Configuration:
-    city_name = "Tuebingen" 
-    folder = "/tmp/" 
-    max_iterations = None  
-    connections_per_step = 5 
-    data = ["distance"] 
-    nb_processes = 1
-    seed = 1234
-    x_lim = (0.0,0.05)
-    y_lim = (0.0,0.05)
+CITY_NAME = "Tuebingen"
+# config for energy based algo to create a synthetic city
+MAX_ITERATIONS = None
+CONNECTIONS_PER_STEP = 5
+# distribution: location_type : number of locations of
+# this type.
+LOCATION_DISTRIBUTION = DEFAULT_LOCATION_DISTRIBUTION
+# mobility plans will contains these extra data:
+DATA = ["distance"]
+# area of the city: longitude and latitude, in degrees
+X_LIM = (0.0,0.05)
+Y_LIM = (0.0,0.05)
+
+# number of simulated person
+NB_PERSONS = 1000
+
+# random seed
+SEED = 1234
+
 
     
 def _get_city(random_generator):
@@ -47,29 +56,29 @@ def _get_city(random_generator):
     # returning it. Otherwise creating it, saving it and returning it
 
     # reading saved city
-    if city_io.is_saved(Configuration.city_name, Configuration.folder):
-        city = city_io.load(Configuration.city_name, Configuration.folder)
+    if city_io.is_saved(CITY_NAME):
+        city = city_io.load(CITY_NAME)
         print("loaded city", city.name)
 
     # creating the city and saving it
     else:
         # creating a virtual city based on a energy based algorithm
-        city = City.build_random(Configuration.city_name,
+        city = City.build_random(CITY_NAME,
                                  DEFAULT_LOCATION_DISTRIBUTION,
-                                 x_lim=Configuration.x_lim,
-                                 y_lim=Configuration.y_lim,
+                                 x_lim=X_LIM,
+                                 y_lim=Y_LIM,
                                  rng=random_generator,
                                  create_network=True,
-                                 nb_processes=Configuration.nb_processes,
-                                 max_iterations=Configuration.max_iterations,
-                                 connections_per_step=Configuration.connections_per_step)
+                                 max_iterations=MAX_ITERATIONS,
+                                 connections_per_step=CONNECTIONS_PER_STEP)
         # asking the algo to create edges/roads for all
         # known transport type (e.g. walk, train, bus, etc)
         energy_args = {"connection_types": list(TransportType)}
         # saving the city for later usage
         # (i.e. if the demo is started again, it will not recreate the city,
         #  but it will read it from the file it was saved in)
-        path = city_io.save(city, Configuration.folder, overwrite=True)
+        # (saving in current directory)
+        path = city_io.save(city, overwrite=True)
         print("created city", city.name, "saved in", path)
 
     return city
@@ -268,12 +277,18 @@ def _create_random_person(rng):
                                                average_speeds)
 
     # the home location of the person
-    home = rng.choice(city.get_locations_by_types(LocationType.HOUSEHOLD))
+    home = rng.choice([loc for loc in
+                       city.get_locations_by_types(LocationType.HOUSEHOLD)
+                       if city.pathable_location(loc)])
 
     # the work location of the person
-    work = rng.choice(city.get_locations_by_types(LocationType.OFFICE))
+    # TODO: call to "pathable_location" should not be required
+    work = rng.choice([loc for loc in
+                       city.get_locations_by_types(LocationType.OFFICE)
+                       if city.pathable_location(loc)])
 
     # the selected leisure location of the person
+    # TODO: call to "pathable_location" should not be required
     leisure_places = city.get_locations_by_types((LocationType.GAMBLING,
                                                   LocationType.NIGHTCLUB,
                                                   LocationType.THEATER,
@@ -282,7 +297,9 @@ def _create_random_person(rng):
                                                   LocationType.BAR,
                                                   LocationType.RESTAURANT))
     leisure_places = list(itertools.chain.from_iterable(leisure_places.values()))
-    leisure = rng.choice(leisure_places)
+    # TODO: call to "pathable_location" should not be required
+    leisure = rng.choice([loc for loc in leisure_places
+                          if city.pathable_location(loc)])
 
     # working hours, between 5 and 10 hours
     working_hours = rng.choice(range(5, 10)) * 3600
@@ -298,7 +315,7 @@ def _create_random_person(rng):
 
 if __name__ == "__main__":
 
-    random_generator = utils.RandomGenerator(seed=Configuration.seed)
+    random_generator = utils.RandomGenerator(seed=SEED)
 
     # creating a virtual city
     # (or reading it from file if not running this demo for the first time)
@@ -308,9 +325,8 @@ if __name__ == "__main__":
     _print_info_city(city)
 
     # creating 1000 random virtual persons
-    nb_persons = 1000
     print("creating persons...")
-    persons = [_create_random_person(random_generator) for _ in range(nb_persons)]
+    persons = [_create_random_person(random_generator) for _ in range(NB_PERSONS)]
     print("done")
     
     # running 1 days of simulation of this simplified world:

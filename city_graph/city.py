@@ -190,7 +190,7 @@ class City:
         # remember the location class. This will come handy.
         self._location_cls = location_cls
 
-        # Build the lookup dictionary. XXX: It used to inside the
+        # Build the lookup dictionary. XXX: It used to be inside the
         # LocationManager, but it becomes too aware about the location
         # class and the topology. Probably it should be merged with
         # the city.
@@ -200,6 +200,14 @@ class City:
         self._pool.terminate()
         self._pool.join()
 
+
+    def pathable_location(self,location):
+        # TODO: to remove.
+        # used as temporary fix !
+        if not self._topology.graph.has_node(location.node):
+            return False
+        return True
+        
     @classmethod
     def build_from_data(cls, name, locations, connections=None, rng=None,
                         create_network=True, nb_processes=1, **kwargs):
@@ -455,7 +463,8 @@ class City:
                         start,
                         target,
                         preferences,
-                        self._locations_by_node)
+                        self._locations_by_node,
+                        self._location_cls)
         return plan
 
     def _non_blocking_plan(self,
@@ -472,7 +481,8 @@ class City:
         result = self._pool.apply_async(
             get_plan, args=(
                 self._topology, start, target,
-                preferences,self._locations_by_node))
+                preferences,self._locations_by_node,
+                self._location_cls))
         plan_id = self._next_plan_id()
         self._plans[plan_id] = result
         return plan_id
@@ -535,7 +545,9 @@ class City:
                 get_plan,
                 args=(
                     self._topology,
-                    *request,self._locations_by_node)) for request in requests]
+                    *request,
+                    self._locations_by_node,
+                    self._location_cls)) for request in requests]
         plans = [r.get() for r in results]
         return plans
 

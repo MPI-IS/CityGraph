@@ -1,6 +1,8 @@
 import time
 from functools import partial
-from .types import TransportType,AVERAGE_SPEEDS
+from .types import (LocationType,
+                    TransportType,
+                    AVERAGE_SPEEDS)
 
 
 class PlanStep:
@@ -108,8 +110,9 @@ class Plan:
         the current machine time is used.
 
         :returns: tuple (finished,(location1,location2,TransportType)), finished being
-        None if the plan is not finished yet or a duration (in second) indicating for how
-        long the plan has been finished. (Location1, location2, TransportType) indicates the
+        None if the plan is not finished yet, otherwise a duration (in seconds) 
+        indicating for how long the plan has been finished. 
+        (Location1, location2, TransportType) indicates the
         current road (or the last road taken in case of finished plan)
 
         :raises: 
@@ -132,10 +135,10 @@ class Plan:
             d+= step.duration
             if relative_time<d:
                 return False,(step.start,step.target,step.mode)
-            
+
         step = self._steps[-1]
         return relative_time-d,(step.start,step.target,step.mode)
-        
+
         
     @property
     def score(self):
@@ -216,7 +219,8 @@ def get_plan(topology,
              start_location,
              target_location,
              preferences,
-             locations_by_nodes):
+             locations_by_nodes,
+             location_class):
     """
     Compute ap plan that describes how to go from the start to the target location
     under the provided user preferences.
@@ -253,7 +257,9 @@ def get_plan(topology,
         return duration
 
     # for each segment in the path, creating a plan step, i.e.
-    # start location, end location, transportation mode
+    # start location, end location, transportation mode and duration
+
+    # returns the location corresponding to node.
     def _get_location(start_location,
                       target_location,
                       locations_by_nodes,
@@ -265,8 +271,18 @@ def get_plan(topology,
             return start_location
         if (not first) and index==size:
             return target_location
-        return locations_by_nodes[node][0]
-
+        candidates = locations_by_nodes[node]
+        if candidates:
+            return candidates[0]
+        # TODO: this should not be required. All node should correspond to a
+        # location ? If not, then coordinates info should be also returned
+        # by the path. Note: typically node for which no location can be found
+        # are of class numpy.int64 (as opposed to just 'int')
+        return location_class(LocationType.NONE,
+                              coordinates=(0.,0.), # obviously problematic
+                              name='invalid location!',
+                              node=node)
+        
     get_location_ = partial(_get_location,
                             start_location,
                             target_location,
@@ -282,6 +298,14 @@ def get_plan(topology,
                                     data["type"],
                                     data["distance"])) ]
 
+    if not plan_steps:
+        # may occurs if traveling to location already at, or to
+        # a location at same topology node
+        plan_steps = [PlanStep(start_location,
+                                target_location,
+                                TransportType.WALK,
+                                0)]
+    
     # adding to the steps the extra attributes (e.g. distance, duration)
     # also returned by the topology
     for attr, values in data.items():
@@ -290,7 +314,6 @@ def get_plan(topology,
                 setattr(plan_step, attr, value)
 
     # packaging the plan steps into a plan
-
     plan = Plan(steps=plan_steps, score=score)
 
     return plan
