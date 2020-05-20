@@ -1,20 +1,23 @@
 import time
-from functools import partial
-from .types import TransportType,AVERAGE_SPEEDS
+from .types import TransportType, AVERAGE_SPEEDS
 
 
 class PlanStep:
     """
-    A plan step represents a segment in a bigger plan for going from a starting
-    location to a target location (a plan is a list of successive plan steps,
-    in which the target location of a step is the starting location of the next step).
+    A plan step represents a segment in a bigger plan for going from a
+    starting location to a target location (a plan is a list of
+    successive plan steps, in which the target location of a step is
+    the starting location of the next step).
 
-    :param obj start: starting location of the step (:py:class:`city_graph.types.Location`)
-    :param obj target: target location of the step (:py:class:`city_graph.types.Location`)
-    :param obj mode: transportation mode used (:py:class:`city_graph.types.TransportType`)
-        to go from the start to the target location.
-    :param float duration: expected duration for going from start to target uing the 
-        selected transport type 
+    :param obj start: starting location of the step
+        (:py:class:`city_graph.types.Location`)
+    :param obj target: target location of the step
+        (:py:class:`city_graph.types.Location`)
+    :param obj mode: transportation mode used
+        (:py:class:`city_graph.types.TransportType`) to go from the
+        start to the target location.
+    :param float duration: expected duration for going from start to
+        target uing the selected transport type
     """
 
     def __init__(self, start, target, mode, duration):
@@ -25,15 +28,16 @@ class PlanStep:
 
     def __eq__(self, other):
         assert isinstance(other, self.__class__)
-        attrs = [attr for attr in vars(self) if attr != "start"
-                 and attr != "target"]
-        if any([getattr(self, attr) != getattr(other, attr)
-                for attr in attrs]):
+        attrs = [
+            attr
+            for attr in vars(self)
+            if attr != "start" and attr != "target"
+        ]
+        if any([getattr(self, attr) != getattr(other, attr) for attr in attrs]):
             return False
         return True
 
     def __str__(self):
-        attrs = vars(self)
         output = "PlanStep:\n"
         output += "\tmode: {}\n".format(self.mode)
         start = (
@@ -63,8 +67,9 @@ class Plan:
     :param score: score of the plan, as computed by the shortest path algorithm
     """
 
-    __slots__ = ("_steps", "_valid", "_error", "_score",
-                 "_start_time","_average_speeds")
+    __slots__ = (
+        "_steps", "_valid", "_error", "_score",
+        "_start_time", "_average_speeds")
 
     def __init__(self, steps=None, score=None):
         self.set_steps(steps)
@@ -73,7 +78,7 @@ class Plan:
         self._start_time = None
         self._average_speeds = AVERAGE_SPEEDS
 
-    def set_average_speed(self,speeds):
+    def set_average_speed(self, speeds):
         """
         Set the average speed for each transportation type.
         If this function is not called, then the default average
@@ -84,9 +89,9 @@ class Plan:
 
         :param speeds: dictionary {TransportType:speed in meters per seconds}
         """
-        self._average_speeds = types.AVERAGE_SPEED4
-        
-    def _start(self,current_time):
+        self._average_speeds = speeds
+
+    def _start(self, current_time):
         # Set a time stamp (in seconds) at which this plan starts to be executed.
         # This starting time will be used as reference for computing the position
         # of the person executed then plan (see :py:meth:`.Plan.where`)
@@ -96,14 +101,14 @@ class Plan:
         else:
             self._start_time = current_time
 
-    def where(self,current_time):
+    def where(self, current_time):
         """
         Returns the current location of a person executing the plan,
         i.e. the location of a person going through all the steps of the plan
         moving at the average speed of the transport type used.
         The plan is initialized at the first call to this function.
         See :py:meth:`.Plan.set_average_speed`.
-        
+
         :param int current_time: current time, in seconds. If None,
         the current machine time is used.
 
@@ -112,8 +117,8 @@ class Plan:
         long the plan has been finished. (Location1, location2, TransportType) indicates the
         current road (or the last road taken in case of finished plan)
 
-        :raises: 
-            :py:class:`ValueError` if attempting to query a status 
+        :raises:
+            :py:class:`ValueError` if attempting to query a status
             prior to the plan starting time
 
         """
@@ -123,35 +128,23 @@ class Plan:
             current_time = time.time()
 
         relative_time = current_time - self._start_time
-        if relative_time<0:
-            raise ValueError("PlanStep: trying to get position at a time prior"
-                             +" to the plan starting time")
+        if relative_time < 0:
+            raise ValueError(
+                "PlanStep: trying to get position at a time "
+                "prior to the plan starting time")
 
         d = 0
         for step in self._steps:
-            d+= step.duration
-            if relative_time<d:
-                return False,(step.start,step.target,step.mode)
-            
+            d += step.duration
+            if relative_time < d:
+                return False, (step.start, step.target, step.mode)
+
         step = self._steps[-1]
-        return relative_time-d,(step.start,step.target,step.mode)
-        
-        
+        return relative_time-d, (step.start, step.target, step.mode)
+
     @property
     def score(self):
         return self._score
-
-    def set_steps(self, steps):
-        """
-        set the lists of plan steps defining this plan
-
-        :param steps: list of :py:class:`.PlanStep`
-        """
-        self._steps = steps
-        if steps is None:
-            self._valid = False
-        else:
-            self._valid = True
 
     def is_valid(self):
         """
@@ -160,13 +153,6 @@ class Plan:
             failed to find a suitable plan).
         """
         return self._valid
-
-    @property
-    def steps(self):
-        """
-        :returns: the ordered list of :py:class:`.PlanStep` (or None for an invalid plan)
-        """
-        return self._steps
 
     def get_error(self):
         """
@@ -185,6 +171,18 @@ class Plan:
         Set an error message
         """
         self._error = str(error)
+
+    def set_steps(self, steps):
+        """
+        set the lists of plan steps defining this plan
+
+        :param steps: list of :py:class:`.PlanStep`
+        """
+        self._steps = steps
+        if steps is None:
+            self._valid = False
+        else:
+            self._valid = True
 
     def steps(self):
         """
@@ -215,8 +213,7 @@ class Plan:
 def get_plan(topology,
              start_location,
              target_location,
-             preferences,
-             locations_by_nodes):
+             preferences):
     """
     Compute ap plan that describes how to go from the start to the target location
     under the provided user preferences.
@@ -247,40 +244,16 @@ def get_plan(topology,
         p.set_error(str(error))
         return p
 
-    def _get_duration(distance,mode,preferences):
+    def _get_duration(distance, mode, preferences):
         average_speed = preferences.get_average_speed(mode)
         duration = distance / average_speed
         return duration
 
-    # for each segment in the path, creating a plan step, i.e.
-    # start location, end location, transportation mode
-    def _get_location(start_location,
-                      target_location,
-                      locations_by_nodes,
-                      size,
-                      first,
-                      node,
-                      index):
-        if first and index==0:
-            return start_location
-        if (not first) and index==size:
-            return target_location
-        return locations_by_nodes[node][0]
-
-    get_location_ = partial(_get_location,
-                            start_location,
-                            target_location,
-                            locations_by_nodes,
-                            len(path)-1)
-        
-    plan_steps = [ PlanStep(get_location_(True,start,index),
-                            get_location_(False,target,index),
-                            mode,
-                            _get_duration(distance,mode,preferences) )
-                   for index,(start, target, mode, distance)
-                   in enumerate(zip(path, path[1:],
-                                    data["type"],
-                                    data["distance"])) ]
+    plan_steps = [
+        PlanStep(start, target, mode, _get_duration(distance, mode, preferences))
+        for (start, target, mode, distance)
+        in zip(path, path[1:], data["type"], data["distance"])
+    ]
 
     # adding to the steps the extra attributes (e.g. distance, duration)
     # also returned by the topology

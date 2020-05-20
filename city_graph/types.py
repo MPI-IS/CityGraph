@@ -20,20 +20,21 @@ class TransportType(Enum):
     TRAM = 7
 
 
-
 """
 Average speed (in meters/seconds) of transport types
 (dictionary, key: TransportType, value: speed)
-"""    
-AVERAGE_SPEEDS = { TransportType.WALK: 1.39,
-                   TransportType.BIKE: 4.3,
-                   TransportType.ROAD: 13.8,
-                   TransportType.BUS: 11.1,
-                   TransportType.TROLLEYBUS: 11.1,
-                   TransportType.FERRY: 12.78,
-                   TransportType.TRAM: 11.1,
-                   TransportType.TRAIN: 16.66 }
-    
+"""
+AVERAGE_SPEEDS = {
+    TransportType.WALK: 1.39,
+    TransportType.BIKE: 4.3,
+    TransportType.ROAD: 13.8,
+    TransportType.BUS: 11.1,
+    TransportType.TROLLEYBUS: 11.1,
+    TransportType.FERRY: 12.78,
+    TransportType.TRAM: 11.1,
+    TransportType.TRAIN: 16.66
+}
+
 @unique
 class MobilityType(tuple, Enum):
     """
@@ -53,16 +54,17 @@ class MobilityType(tuple, Enum):
     BIKE = (TransportType.BIKE, ) + PUBLIC_TRANSPORT
     WALK = (TransportType.WALK, )
 
-# d is a dict which keys are either members of TransportType or
-# members of MobilityType
-# (because it is convenient for user to provide value for "PUBLIC_TRANSPORT"
-# in general)
-# This function returns the corresponding dictionary for which keys
-# are all members of TransportType
-# (e.g. it deploys PUBLIC_TRANSPORT into each corresponding TransportType)
-
 
 def _mobility_to_transport(d):
+    """
+    This function takes a dictionary in which the keys are either
+    members of TransportTyep or MobilityType and converts it into a
+    dictionary for in which the keys are all members of TransportType,
+    e.g. it deploys PUBLIC_TRANSPORT into each corresponding
+    TransportType.
+
+    :param dict d: input dictionary.
+    """
     r = {}
     for k, v in d.items():
         if k in MobilityType:
@@ -142,9 +144,6 @@ class LocationType(str, Enum):
 
     CHURCH = 22
 
-    # Plan way path (e.g. intersection)
-    WAYPATH = 23
-    
 
 class BaseEnumMapping(UserDict):
     """
@@ -211,9 +210,9 @@ class Preferences:
 
     :param criterion: graph edge attribute used as weight (default:distance)
     :param mobility: dictionary of keys of types :py:class:`.MobilityType`
-        :py:class:`.TransportType` related to a preference weight 
+        :py:class:`.TransportType` related to a preference weight
         (the highest the value, the preferred the transportation mode)
-    :param average_speeds: dictionary relating :py:class:`.TransportType` to 
+    :param average_speeds: dictionary relating :py:class:`.TransportType` to
         related average speed, in meter per seconds. Default : :py:data:`.AVERAGE_SPEEDS`
     :param data: list of types of data to be extracted during plan computation
         (see :py:class:`city_graph.City.request_plan`), e.g. ['duration','distance'].
@@ -240,11 +239,11 @@ class Preferences:
         self._data = data or []
         self._average_speeds = average_speeds
 
-    
+
     def get_average_speed(self,transport_type):
         """
         Returns the average speed for the transportation type
-        
+
         :param transport_mode: see :py:class:`.TransportType`
 
         :raises:
@@ -252,11 +251,11 @@ class Preferences:
             has not been set
         """
         return self._average_speeds[transport_type]
-        
+
     @property
     def average_speeds(self):
         return self._average_speeds
-        
+
     @property
     def data(self):
         return self._data
