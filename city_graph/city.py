@@ -77,8 +77,7 @@ class LocationManager:
     def get_distance(self, l1, l2):
         """
         Returns the distance between l1 and l2 by either
-          * retrieving it from the _distances attributes(if previously
-           computed)
+          * retrieving it from the _distances attributes(if previously computed)
           * by computing it (and then saving it in _distances)
         :todo: lru_cache here?
         """
@@ -608,7 +607,7 @@ class City:
         False otherwise.
         See: py: meth: `.request_plan`.
 
-        : raises:: py: class: `KeyError`: if an unknown plan_id
+        :raises: :py:class:`KeyError` if plan_id is unknown
         """
         result = self._plans[plan_id]
         return result.ready()
@@ -617,11 +616,11 @@ class City:
         """
         Returns True if all the plans ready.
         False otherwise.
-        See: py: meth: `.request_plan`.
+        See :py:meth:`request_plan`.
 
-        : param: plan_ids, an iterable of plan ids
-        : returns: True if all plans ready, False otherwise
-        : raises:: py: class: `KeyError`: if any invalid plan_id
+        :param: plan_ids, an iterable of plan ids
+        :returns: True if all plans ready, False otherwise
+        :raises: :py:class:`KeyError` if any invalid plan_id
         """
         return all([self.is_plan_ready(plan_id) for plan_id in plan_ids])
 
@@ -630,7 +629,7 @@ class City:
         Returns the corresponding plan if its computation is finished,
         None otherwise.  If the passed id does not correspond to a
         planning job, a KeyError exception is raised.  See
-        :py:meth:`.request_plan`.
+        :py:meth:`request_plan`.
         """
         result = self._plans[plan_id]
         if not result.ready():
@@ -646,9 +645,9 @@ class City:
         returns for each id the corresponding plan.
 
         :param requests_id: an iterable of ids as returned by
-            :py:meth:`.request_plan`.
+            :py:meth:`request_plan`.
 
-        :returns: a dictionary {plan_id: :py:class:`.planning.Plan`}
+        :returns: a dictionary {plan_id: :py:class:`planning.Plan`}
         """
         plans = {}
         for plan_id in plan_ids:

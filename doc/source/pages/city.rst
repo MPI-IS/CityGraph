@@ -131,6 +131,48 @@ which would produce a city with some isolated locations:
    :align:   center
    :scale: 50%
 
+Importing a city from OpenStreetMap
+-----------------------------------
+
+One can also import the city from OpenStreetMap. This is done with via
+function :py:func:`city_graph.importer.import_osm_data()`. The only
+required argument is the name of the city (or a place in general --
+you can import a single city district as well). The execution time and
+memory required depend very much on the city size and on how
+responsive is OSM's Overpass API at the moment.
+
+For example, you can use the code below to import data for city of
+Tübingen (it will take a couple of minutes)
+
+.. code:: python
+
+   from city_graph import importer
+   from city_graph import plotter
+
+   from matplotlib import pyplot as plot
+
+   city = importer.import_osm_data("Tuebingen")
+   plotter.plot_city(city)
+   plot.show()
+
+By running this you should get a plot similar to the one below
+
+.. figure:: ../images/tuebingen_altstadt.png
+   :align: center
+   :scale: 60%
+
+A medium-sized city like Stuttgart takes around 15 minutes and is
+possible to do on a laptop with 8 Gb of memory. For a larger city --
+Berlin for example -- we don't have any data since it does exhaust all
+the memory on the developer's laptops and then crashes. But it should
+be possible to do on a reasonable desktop machine.
+
+By default the data is subsampled on a square grid with a fixed step
+size of 100 meters. You can change this by passing a custom resolution
+
+.. code:: python
+   city = importer.import_osm_data("Tuebingen", resolution=50)
+
 
 References
 ----------
