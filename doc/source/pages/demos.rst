@@ -38,3 +38,6 @@ After a few minutes, it should produce the following plot:
 .. figure:: ../images/tuebingen_full.png
    :align: center
    :scale: 60%
+
+.. note:: The demo might take a few minutes to generate the city the first time,
+    but the date will be saved so subsequent executions will simply load them.

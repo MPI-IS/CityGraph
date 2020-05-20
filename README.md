@@ -1,4 +1,4 @@
-[![Build status](https://raw.githubusercontent.com/MPI-IS-BambooAgent/sw_badges/master/badges/plans/citygraph/tag.svg?sanitize=true)](https://atlas.is.localnet/bamboo/browse/BAMEI-CIT7/latest/)
+[![Build status](https://raw.githubusercontent.com/MPI-IS-BambooAgent/sw_badges/master/badges/plans/citygraph/tag.svg?sanitize=true)](https://atlas.is.localnet/bamboo/browse/BAMEI-CIT/latest/)
 
 CityGraph
 =========

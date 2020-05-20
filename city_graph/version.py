@@ -1,2 +1,2 @@
 # Package version
-__version__ = "0.2-b"
+__version__ = "0.2b"

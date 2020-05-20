@@ -6,3 +6,5 @@ dist
 .nose*
 *.xml
 _build
+*.citygraph
+*.orig
