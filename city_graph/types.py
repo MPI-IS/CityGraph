@@ -1,3 +1,9 @@
+"""
+Types
+=====
+
+Module containing custom types and constants needed for the package.
+"""
 from collections import UserDict
 from enum import Enum, unique
 from shapely.geometry import Point
@@ -5,9 +11,7 @@ from shapely.geometry import Point
 
 @unique
 class TransportType(Enum):
-    """
-    Type of transport.
-    """
+    """Type of transport."""
 
     ROAD = 0
     BIKE = 1
@@ -21,10 +25,9 @@ class TransportType(Enum):
     TROLLEYBUS = 8
 
 
-"""
-Average speed (in meters/seconds) of transport types
-(dictionary, key: TransportType, value: speed)
-"""
+# TODO: move to mapping
+#: Average speed (in meters/seconds) of transport types
+#: (dictionary, key: TransportType, value: speed in m/s)
 AVERAGE_SPEEDS = {
     TransportType.WALK: 1.39,
     TransportType.BIKE: 4.3,
@@ -36,11 +39,10 @@ AVERAGE_SPEEDS = {
     TransportType.TRAIN: 16.66
 }
 
+
 @unique
 class MobilityType(tuple, Enum):
-    """
-    Type of human mobility.
-    """
+    """Type of human mobility."""
 
     PUBLIC_TRANSPORT = (
         TransportType.WALK,
@@ -82,9 +84,10 @@ class LocationType(str, Enum):
 
     :note: Compiled from amenity, leisure and building type values in
         OpenStreetMap. For the original lists, please refer to:
-            * https://wiki.openstreetmap.org/wiki/Key:amenity
-            * https://wiki.openstreetmap.org/wiki/Key:leisure
-            * https://wiki.openstreetmap.org/wiki/Key:building
+
+        * https://wiki.openstreetmap.org/wiki/Key:amenity
+        * https://wiki.openstreetmap.org/wiki/Key:leisure
+        * https://wiki.openstreetmap.org/wiki/Key:building
     """
 
     # This is a special case: sometimes we want to convey to the user
@@ -149,7 +152,7 @@ class LocationType(str, Enum):
 class BaseEnumMapping(UserDict):
     """
     Abstract class mapping members of an enumeration to values.
-    Values can be set using the enumeration members or their lower-cased names.
+    Values can be set using the enumeration members or their lower - cased names.
     """
 
     def __init__(self, enum_cls, **kwargs):
@@ -207,27 +210,26 @@ class PathCriterion(str, Enum):
 class Preferences:
     """
     Encapsulate the user's preferences for path planning,
-    e.g.  his/her relative preferrances for the various transporation modes.
+    e.g.  his / her relative preferrances for the various transporation modes.
 
-    :param criterion: graph edge attribute used as weight (default:distance)
-    :param mobility: dictionary of keys of types :py:class:`.MobilityType`
-        :py:class:`.TransportType` related to a preference weight
+    :param criterion: graph edge attribute used as weight
+    :type criterion: :py:class:`.PathCriterion`
+    :param dict mobility: preferred transportation modes.
+        The keys are members of :py:class:`.MobilityType` and the values are floats
         (the highest the value, the preferred the transportation mode)
-    :param average_speeds: dictionary relating :py:class:`.TransportType` to
-        related average speed, in meter per seconds. Default : :py:data:`.AVERAGE_SPEEDS`
-    :param data: list of types of data to be extracted during plan computation
-        (see :py:class:`city_graph.City.request_plan`), e.g. ['duration','distance'].
-        default: ['distance']
+    :param dict average_speeds: dictionary relating: :py:class:`.TransportType` to
+        related average speed in m/s.
+    :param list data: types of data to be extracted during plan computation
+        (see: :py:func:`request_plan<city_graph.City.request_plan>`).
     """
 
-    __slots__ = ("_mobility", "_criterion", "_data","_average_speeds")
+    __slots__ = ("_mobility", "_criterion", "_data", "_average_speeds")
 
     def __init__(self,
                  criterion=PathCriterion.DISTANCE,
                  mobility=None,
                  average_speeds=AVERAGE_SPEEDS,
                  data=["distance"]):
-
 
         if criterion not in list(PathCriterion):
             message = str(criterion) + ": "
@@ -240,15 +242,15 @@ class Preferences:
         self._data = data or []
         self._average_speeds = average_speeds
 
-
-    def get_average_speed(self,transport_type):
+    def get_average_speed(self, transport_type):
         """
         Returns the average speed for the transportation type
 
-        :param transport_mode: see :py:class:`.TransportType`
+        :param transport_mode: transport mode
+        :type transport_mode: :py:class:`.TransportType`
 
         :raises:
-            :py:class:`KeyError`: if the average speed for the transport type
+            :py:class:`.KeyError`: if the average speed for the transport type
             has not been set
         """
         return self._average_speeds[transport_type]
@@ -305,9 +307,9 @@ class Location:
 
     :param int location_id: unique id of the location
     :param location_type: the type of location
-    :param coordinates: where the location is (instance of shapely.geometry.Point)
-    :param str name: the location name (optional)
-    :param node: id of a node in a graph (optional)
+    :param tuple coordinates: location coordinates
+    :param str name: the location name
+    :param int node: id of a node in a graph
     """
 
     __id_count = 0

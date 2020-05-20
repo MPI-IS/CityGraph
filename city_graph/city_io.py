@@ -14,6 +14,7 @@ def _fix_path(path):
         raise FileNotFoundError("CityGraph.city_io: " + path + " does not exist")
     return path
 
+
 def _get_abs_path(city, path):
     # city : either a string (city name) or an instance of City
     # path : absolute path to a folder with read/write access
@@ -21,7 +22,7 @@ def _get_abs_path(city, path):
         city_name = city
     else:
         city_name = city.name
-    
+
     return os.sep.join([path,
                         city_name]) + EXTENSION
 
@@ -30,14 +31,16 @@ def is_saved(city, path=None):
     """
     Returns True if a city of the same name as already been saved.
 
-    :param obj or str city: city (:py:class:`.city.City`) or city name (str)
+    :param city: city or city name
+    :type city: :py:class:`City<city_graph.city.City>` or str
     :param str path: path of the folder where cities are saved. default: current directory
     :returns: True if a city of the same name has already been saved.
+    :rtype: bool
     """
     # set path to current directory if None.
     # raise Exception if path does not exist
     path = _fix_path(path)
-    # path to the file 
+    # path to the file
     path = _get_abs_path(city, path)
     return os.path.isfile(path)
 
@@ -46,7 +49,7 @@ def save(city, path=None, overwrite=False):
     """
     Save the city in a file.
 
-    :param obj or str city: city to save (:py:class:`.city.City` or str)
+    :param obj or str city: city to save (:py:class:`City<city_graph.city.City>` or str)
     :param str path: path of the folder where cities are saved. default: currrent directory
     :param bool overwrite: if True, will overwrite any saved city of the same name.
         default: False
@@ -65,8 +68,8 @@ def save(city, path=None, overwrite=False):
     # file already exist, and overwrite is false:
     if os.path.exists(path):
         if not overwrite:
-            raise FileExistsError("CityGraph.city_io: can not save in",path,"(aleady exists)")
-    
+            raise FileExistsError("CityGraph.city_io: can not save in", path, "(aleady exists)")
+
     with open(path, "wb") as f:
         pickle.dump(city, f)
 
@@ -78,7 +81,7 @@ def load(city_name, path=None):
     :param str city_name: name of the city to load
     :param str path: path of the folder where cities are saved. default: current directory
     :raises: :py:class:`FileNotFoundError`: if no city of this name has been saved
-    :returns: An instance of :py:class:`.city.City`
+    :returns: An instance of :py:class:`City<city_graph.city.City>`
     """
     if not is_saved(city_name, path):
         raise FileNotFoundError("loading city: " + path + " does not exist")

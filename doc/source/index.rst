@@ -10,7 +10,10 @@ Welcome to CityGraph's documentation!
    :maxdepth: 1
    :caption: Contents:
 
+   pages/demos
    pages/city
+   pages/planning
+   pages/city_io
    pages/topolgy
    pages/utils
 
@@ -27,7 +30,7 @@ The application only requires ``Python 3.5`` or higher.
 Installation
 ------------
 
-**CityGraph** releases can be instaled from ``PyPI``:
+**CityGraph** releases can be instaled from `PyPI <https://pypi.org/>`_:
 
 .. code::
 
@@ -65,6 +68,27 @@ To build the ``Sphinx`` documentation:
     $ make html
 
 and open the file ``build/html/index.html`` in your web browser.
+
+Authors
+-------
+
+`Jean-Claude Passy <mailto:jean-claude.passy@tuebingen.mpg.de>`_,
+Software Workshop - Max Planck Institute for Intelligent Systems
+
+`Ivan Oreshnikov <mailto:ivan.oreshnikov@tuebingen.mpg.de>`_,
+Software Workshop - Max Planck Institute for Intelligent Systems
+
+`Vincent Berenz <mailto:vberenz@tuebingen.mpg.de>`_,
+Max Planck Institute for Intelligent Systems
+
+License
+-------
+
+BSD-3-Clause.
+
+The OSM import code contains a modified snippet of code from the project
+`osmnx <https://github.com/gboeing/osmnx>`_
+that is being distributed under the MIT License.
 
 Copyright
 ---------

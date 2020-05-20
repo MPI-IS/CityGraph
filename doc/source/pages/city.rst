@@ -171,6 +171,7 @@ By default the data is subsampled on a square grid with a fixed step
 size of 100 meters. You can change this by passing a custom resolution
 
 .. code:: python
+
    city = importer.import_osm_data("Tuebingen", resolution=50)
 
 
@@ -180,9 +181,4 @@ References
 .. automodule:: city_graph.city
    :members:
    :member-order: bysource
-   :exclude-members: __weakref__
-
-.. automodule:: city_graph.types
-   :members:
-   :member-order: bysource
-   :exclude-members: __weakref__
+   :exclude-members: __weakref__, compute_distances, get_closest

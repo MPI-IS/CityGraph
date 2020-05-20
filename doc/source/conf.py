@@ -22,7 +22,7 @@ sys.path.insert(0, str(root_source_folder))
 # -- Project information -----------------------------------------------------
 
 project = 'CityGraph'
-copyright = '2020, Software Workshop / Max Planck Institute for Intelligent Systems'
+copyright = '2020, Max Planck Society / Software Workshop - Max Planck Institute for Intelligent Systems'
 author = 'Software Workshop'
 
 # Version

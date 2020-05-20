@@ -1,4 +1,3 @@
-from collections import defaultdict
 from itertools import chain
 import multiprocessing
 
@@ -77,8 +76,9 @@ class LocationManager:
     def get_distance(self, l1, l2):
         """
         Returns the distance between l1 and l2 by either
-          * retrieving it from the _distances attributes(if previously computed)
+          * retrieving it from the _distances attributes (if previously computed)
           * by computing it (and then saving it in _distances)
+
         :todo: lru_cache here?
         """
         try:
@@ -217,7 +217,7 @@ class City:
             connection type * a dictionary for the extra attributes of
             the connection
         :param rng: Random number generator.
-        :type rng: :py:class: `.RandomGenerator`
+        :type rng: :py:class:`RandomGenerator<city_graph.utils.RandomGenerator>`
 
         :param location_cls: A callable used to construct the
             location.
@@ -285,7 +285,7 @@ class City:
         :param tuple x_lim: Coordinates range on the x-axis.
         :param tuple y_lim: Coordinates range on the y-axis.
         :param rng: Random number generator.
-        :type rng: :py:class: `.RandomGenerator`
+        :type rng: :py:class:`RandomGenerator<city_graph.utils.RandomGenerator>`
 
         :param cls location_cls: class used for representing a
             location.
@@ -346,7 +346,7 @@ class City:
             distance energy component during the search for new
             connections (higher means more prominent).
         :param rng: Random number generator.
-        :type rng: :py:class: `.RandomGenerator`
+        :type rng: :py:class:`RandomGenerator<city_graph.utils.RandomGenerator>`
         """
         rng = rng or RandomGenerator()
 
@@ -384,7 +384,7 @@ class City:
         :param int num_central_locations: Number of requested central
             locations.
         :param rng: Random number generator.
-        :type rng: :py:class:`RandomGenerator`
+        :type rng: :py:class:`RandomGenerator<city_graph.utils.RandomGenerator>`
         """
         rng = rng or RandomGenerator()
 
@@ -433,11 +433,11 @@ class City:
         possibly filtering by location type
 
         :param location_types: either a:
-            :py:class:`city_graph.types.LocationType`, or an interable
+            :py:class:`LocationType<city_graph.types.LocationType>`, or an interable
             of(default: all types available)
 
-        :returns: An iterator of: py:class:`city_graph.types.Location`
-                  instances.
+        :returns: All the locations of the given type(s)
+        :rtype: iter(:py:class:`LocationType<city_graph.types.LocationType>`)
         """
         if isinstance(location_types, str):
             location_types = [location_types]
@@ -450,8 +450,8 @@ class City:
         Return dictionary, which keys are a location type, and the
         values lists of the location of that type.
 
-        :param location_types: an iterator of
-            :py:class:`types.LocationType`.
+        :param location_types: locations types
+        :type location_types: iter(:py:class:`LocationType<city_graph.types.LocationType>`)
 
         :returns: A dictionary {type: list of Location instances}
         """
@@ -469,7 +469,7 @@ class City:
         Compute and store the pairwise distances between all known
         locations.  This will make calls to :py:meth:`.get_closest`
         faster.  This method can also be called before calls to
-        :py:meth:`city_graph.city_io.save` so that cities may be
+        :py:meth:`save<city_graph.city_io.save>` so that cities may be
         reloaed with pre - computed distances.
         """
         self._locations_manager.compute_all_distances()
@@ -535,24 +535,21 @@ class City:
         computation(:py:meth:`is_plan_ready`) and retrieve the plan
         once the computation is terminated(:py:meth:`get_plan`).
 
-        :param start: starting location : type start:: py: class:
-            `city_graph.types.Location`
+        :param start: starting location
+        :type start: :py:class:`Location<city_graph.types.Location>`
 
-        :param target: target location : type target:: py: class:
-            `city_graph.types.Location`
+        :param target: target location
+        :type target: :py:class:`Location<city_graph.types.Location>`
 
-        :param preferences: preferrence of each transportation mode :
-            type preferences:: py: class:
-            `city_graph.types.Preferences`
+        :param preferences: preferrence of each transportation mode
+        :type preferences: :py:class:`Preferences<city_graph.types.Preferences>`
 
         :param bool blocking: True if a plan should be computed then
             returned, False if the function should return immediately
             a job id
 
-        :returns: A plan (blocking is True) or a job id (blocking is
-                  False)
-
-        :rtype: :py:class:`city_graph.planning.Plan` or int
+        :returns: A plan (blocking is True) or a job id (blocking is False)
+        :rtype: :py:class:`Plan<city_graph.planning.Plan>` or int
         """
 
         # run shortest path and return the plan
@@ -586,14 +583,14 @@ class City:
         """
         Compute a plan for each request.  A request is a tuple (start
         location, target_location, preferences).  See
-        :py:class:`city_graph.types.Location`,
-        :py:class:`city_graph.types.Preferences`.
+        :py:class:`Location<city_graph.types.Location>`,
+        :py:class:`Preferences<city_graph.types.Preferences>`.
 
         :param requests: An iterable of requests, i.e tuple(start
             location, target_location, preferences)
 
-        :returns: A list of plans (:py:class:`city_graph.planning.Plan`), with
-                  the same ordering as the requests
+        :returns: A list of plans with the same ordering as the requests
+        :rtype: list(:py:class:`Plan<city_graph.planning.Plan>`)
         """
         # non multiprocess computation
         if self._nb_processes <= 1 or len(requests) == 1:
@@ -647,7 +644,7 @@ class City:
         :param requests_id: an iterable of ids as returned by
             :py:meth:`request_plan`.
 
-        :returns: a dictionary {plan_id: :py:class:`planning.Plan`}
+        :returns: a dictionary {plan_id: :py:class:`Plan<city_graph.planning.Plan>`}
         """
         plans = {}
         for plan_id in plan_ids:
@@ -696,7 +693,7 @@ class City:
                     self._location_cls(
                         LocationType.NONE,
                         node=step.target,
-                        coordinates=Point(lon, lat)), # mind the comma!
+                        coordinates=Point(lon, lat)),  # mind the comma!
                 )
 
             step.start = start_locations

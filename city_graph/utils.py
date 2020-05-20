@@ -78,6 +78,7 @@ def reverse_mapping(mapping):
             reverse[value] = key
     return reverse
 
+
 class RandomGenerator(RandomState):
     """
     Pseudo-random number generator based on the MT19937.
@@ -101,7 +102,7 @@ class RandomGenerator(RandomState):
         return self._seed
 
     def seed(self, _seed):
-        """"Reseed the generator."""
+        """Reseeds the generator."""
         self._seed = _seed
         super().seed(self.rng_seed)
 

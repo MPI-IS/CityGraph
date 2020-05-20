@@ -326,8 +326,10 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         At each iteration, the total energy (degree energy + potential energy)
         is calculated between all nodes and transformed into a Boltzmann distribution.
         Edges are more likely to be created between nodes which are:
-            * close
-            * already connected to other nodes
+
+        * close
+        * already connected to other nodes
+
         A fixed number of random connections are then created based on this distribution,
         masking previous connections and self-edges.
         The process is repeated until either the maximum number of iterations is reached,
@@ -342,9 +344,10 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :param float distance_energy_factor: Multiplier applied to the distance energy component
             during the search for new edges (higher means more prominent).
         :param rng: Random number generator.
-        :type rng: :py:class: `.RandomGenerator`
+        :type rng: :py:class:`RandomGenerator<city_graph.utils.RandomGenerator>`
 
-        :note: The algorithm does take into account already exisiting edges to compute the probabilities.
+        :note: The algorithm does take into account already exisiting edges
+            to compute the probabilities.
         """
 
         print("[Topology] Starting energy sampling algorithm to build edges.")
@@ -461,7 +464,7 @@ class MultiEdgeUndirectedTopology(BaseTopology):
         :param iter edge_types: Types of the edges to add.
         :param int num_centroids: Number of centroids.
         :param rng: Random number generator.
-        :type rng: :py:class: `.RandomGenerator`
+        :type rng: :py:class:`RandomGenerator<city_graph.utils.RandomGenerator>`
         """
 
         print("[Topology] Starting building edges between %s central nodes." % num_centroids)

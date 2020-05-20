@@ -9,13 +9,12 @@ class PlanStep:
     successive plan steps, in which the target location of a step is
     the starting location of the next step).
 
-    :param obj start: starting location of the step
-        (:py:class:`city_graph.types.Location`)
-    :param obj target: target location of the step
-        (:py:class:`city_graph.types.Location`)
-    :param obj mode: transportation mode used
-        (:py:class:`city_graph.types.TransportType`) to go from the
-        start to the target location.
+    :param start: starting location of the step
+    :type start: :py:class:`Location<city_graph.types.Location>`
+    :param target: target location of the step
+    :type target: :py:class:`Location<city_graph.types.Location>`
+    :param mode: transportation mode used
+    :type mode: :py:class:`TransportType<city_graph.types.TransportType>`
     :param float duration: expected duration for going from start to
         target uing the selected transport type
     """
@@ -61,10 +60,11 @@ class Plan:
     An invalid plan is the result of the planner failing to find a suitable
     path between the start and target locations.
     Instances of Plan are returned by planning functions,
-    see :py:class:`city_graph.city.City`.
+    see :py:class:`City<city_graph.city.City>`.
 
-    :param steps: list of :py:class:`.PlanStep`
-    :param score: score of the plan, as computed by the shortest path algorithm
+    :param steps: list of plan steps
+    :type steps: list(:py:class:`.PlanStep`)
+    :param float score: score of the plan, as computed by the shortest path algorithm
     """
 
     __slots__ = (
@@ -82,10 +82,10 @@ class Plan:
         """
         Set the average speed for each transportation type.
         If this function is not called, then the default average
-        speed (see :py:data:`city_graph.types.AVERAGE_SPEEDS`).
+        speed (see :py:const:`AVERAGE_SPEEDS<city_graph.types.AVERAGE_SPEEDS>`).
         Average speed are used to compute the current position
-        as returned by :py:meth:`.Plan.where`.
-        See :py:class:`city_graph.types.TransportType`.
+        as returned by :py:meth:`where<.Plan.where>`.
+        See :py:class:`TransportType<city_graph.types.TransportType>`.
 
         :param speeds: dictionary {TransportType:speed in meters per seconds}
         """
@@ -107,15 +107,15 @@ class Plan:
         i.e. the location of a person going through all the steps of the plan
         moving at the average speed of the transport type used.
         The plan is initialized at the first call to this function.
-        See :py:meth:`.Plan.set_average_speed`.
+        See :py:meth:`set_average_speed<.Plan.set_average_speed>`.
 
         :param int current_time: current time, in seconds. If None,
-        the current machine time is used.
+            the current machine time is used.
 
         :returns: tuple (finished,(location1,location2,TransportType)), finished being
-        None if the plan is not finished yet or a duration (in second) indicating for how
-        long the plan has been finished. (Location1, location2, TransportType) indicates the
-        current road (or the last road taken in case of finished plan)
+            None if the plan is not finished yet or a duration (in second) indicating for how
+            long the plan has been finished. (Location1, location2, TransportType) indicates the
+            current road (or the last road taken in case of finished plan)
 
         :raises:
             :py:class:`ValueError` if attempting to query a status
@@ -140,7 +140,7 @@ class Plan:
                 return False, (step.start, step.target, step.mode)
 
         step = self._steps[-1]
-        return relative_time-d, (step.start, step.target, step.mode)
+        return relative_time - d, (step.start, step.target, step.mode)
 
     @property
     def score(self):
@@ -176,7 +176,8 @@ class Plan:
         """
         set the lists of plan steps defining this plan
 
-        :param steps: list of :py:class:`.PlanStep`
+        :param steps: list of steps
+        :type steps: list(:py:class:`.PlanStep`)
         """
         self._steps = steps
         if steps is None:
@@ -218,11 +219,15 @@ def get_plan(topology,
     Compute ap plan that describes how to go from the start to the target location
     under the provided user preferences.
 
-    :param obj start_location: start location (:py:class:`city_graph.types.Location`)
-    :param obj target_location: target location (:py:class:`city_graph.types.Location`)
-    :param obj preferences: user preferences (:py:class:`city_graph.types.Preferences`)
+    :param start_location: start location
+    :type start_location: :py:class:`Location<city_graph.types.Location>`
+    :param target_location: target location
+    :type target_location: :py:class:`Location<city_graph.types.Location>`
+    :param preferences: user preferences
+    :type preferences: :py:class:`Preferences<city_graph.types.Preferences>`
 
-    :returns: :py:class:`.Plan` if a plan is found, None otherwise
+    :returns: the optimal plan if any found, else None
+    :rtype: :py:class:`.Plan`
     """
 
     assert all([mode in TransportType for mode in preferences.mobility])
