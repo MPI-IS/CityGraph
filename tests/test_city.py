@@ -34,7 +34,7 @@ class TestCity(RandomTestCase):
                       (0, 0), name="l0")
         l1 = Location(LocationType.PHARMACY,
                       (1, 0), name="l1")
-        l2 = Location(LocationType.SUPERMARKET,
+        l2 = Location(LocationType.GROCERY,
                       (2, 0), name="l2")
         l3 = Location(LocationType.PUBLIC_TRANSPORT_STATION,
                       (3, 0), name="l3")
@@ -230,13 +230,13 @@ class TestCity(RandomTestCase):
         self.assertEqual(len(list(locations)), 2)
 
         # we know the dummy topology has 1 location for supermarket
-        locations = self.city.get_locations(location_types=LocationType.SUPERMARKET)
+        locations = self.city.get_locations(location_types=LocationType.GROCERY)
         self.assertEqual(len(list(locations)), 1)
 
         # we know nb supermarket + public transport station is 3
         locations = self.city.get_locations(
             location_types=[
-                LocationType.SUPERMARKET,
+                LocationType.GROCERY,
                 LocationType.PUBLIC_TRANSPORT_STATION])
         self.assertEqual(len(list(locations)), 3)
 
@@ -245,16 +245,16 @@ class TestCity(RandomTestCase):
 
         # getting the dictionary of locations {type:[locations]}
         locations = self.city.get_locations_by_types(
-            [LocationType.SUPERMARKET, LocationType.PUBLIC_TRANSPORT_STATION])
+            [LocationType.GROCERY, LocationType.PUBLIC_TRANSPORT_STATION])
 
         # comparing with ground truth
         self.assertEqual(len(locations.keys()), 2)
-        self.assertIn(LocationType.SUPERMARKET, locations)
+        self.assertIn(LocationType.GROCERY, locations)
         self.assertIn(LocationType.PUBLIC_TRANSPORT_STATION, locations)
 
     def test_get_closest(self):
         """Test that city succeed in returning closest locations"""
-        
+
         # running twice, because distances are buffered, so
         # results could vary between two iterations
         for _ in range(2):
@@ -264,7 +264,7 @@ class TestCity(RandomTestCase):
             closest = self.city.get_closest(target)
             self.assertTrue(closest == self.locations[1])
 
-            closest = self.city.get_closest(target, LocationType.SUPERMARKET)
+            closest = self.city.get_closest(target, LocationType.GROCERY)
             self.assertTrue(closest == self.locations[2])
 
             closest = self.city.get_closest(
@@ -292,7 +292,7 @@ class TestCity(RandomTestCase):
             closest = self.city.get_closest(target,excluded_locations=[self.locations[1]])
             self.assertTrue(closest== self.locations[2])
 
-            
+
     def test_request_blocking_plan(self):
         """ check the plan returned by request_plan is as expected"""
 
@@ -570,7 +570,7 @@ class TestCity(RandomTestCase):
         # check invalid query time
         with self.assertRaises(ValueError):
             plan.where(starting_time-1)
-        
+
     @patch.object(MultiEdgeUndirectedTopology, 'add_energy_based_edges')
     def test_create_connections_by_energy(self, add_mocked):
         """Checks the algo creating connections by energy."""
@@ -584,4 +584,3 @@ class TestCity(RandomTestCase):
 
         self.city.create_central_connections(EDGE_TYPE)
         self.assertTrue(add_mocked.called)
-

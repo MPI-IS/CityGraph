@@ -52,19 +52,31 @@ def distance(long1, lat1, long2, lat2):
     return d * EARTH_RADIUS_METERS
 
 
-def group_locations_by_type(locations):
+def group_locations_by(locations, attribute):
     """
-    Group a list of locations in a dictionary based their type.
+    Group locations into a dictionary of lists based on an attribute.
 
-    :note: Used mostly for reporting and plotting.
+    :param list locations: A list of locations.
+    :param str attribute: Attribute name.
     """
-
-    # TODO: This should probably not be here but instead in the LocationManager/Plotter
-    locations_by_type = collections.defaultdict(list)
+    grouped = collections.defaultdict(list)
     for location in locations:
-        locations_by_type[location.location_type].append(location)
-    return locations_by_type
+        value = getattr(location, attribute)
+        grouped[value].append(location)
+    return grouped
 
+
+def reverse_mapping(mapping):
+    """
+    Construct a reverse dictionary mapping values to keys.
+
+    :param dict mapping: the original dictionary.
+    """
+    reverse = {}
+    for key, values in mapping.items():
+        for value in values:
+            reverse[value] = key
+    return reverse
 
 class RandomGenerator(RandomState):
     """
