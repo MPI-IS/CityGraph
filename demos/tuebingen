@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+import logging
+import random
+
+from matplotlib import pyplot
+
+from city_graph import city_io, importer, plotter
+from city_graph.types import Preferences, TransportType
+
+
+logging.basicConfig(level=logging.INFO)
+
+
+city_name = "Tuebingen"
+folder = "/tmp/"
+
+
+if city_io.is_saved(city_name, folder):
+    city = city_io.load(city_name, folder)
+else:
+    city = importer.import_osm_data(city_name)
+    city_io.save(city, folder, overwrite=True)
+
+
+preferences = Preferences(
+    mobility={
+        TransportType.BUS: 0.7,
+        TransportType.TRAIN: 0.2,
+        TransportType.WALK: 0.1,
+    })
+
+
+plotter.plot_city(city)
+pyplot.show()
+
+
+locations = list(city.get_locations())
+point_a = random.choice(locations)
+point_b = random.choice(locations)
+
+plans = city.compute_plans([(point_a, point_b, preferences)])
+print(plans[0])

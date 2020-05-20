@@ -1,0 +1,9 @@
+descartes
+geopandas
+networkx
+numpy
+osmnx
+scipy
+shapely
+sphinx
+sphinx-bootstrap-theme

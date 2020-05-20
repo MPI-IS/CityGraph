@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+import logging
+import time
+from city_graph import city
+from city_graph import planning
+
+test_graph = planning.TestGraph()
+
+
+def _compute_plans(nb_plans, nb_processes):
+
+    if nb_processes > 0:
+        mycity = city.City("DemoCity", test_graph.topology,
+                           nb_processes=nb_processes)
+    else:
+        mycity = city.City("DemoCity", test_graph.topology, nb_processes=None)
+
+    locations = mycity.get_locations()
+    start = locations[0]
+    target = locations[-1]
+
+    plan_ids = []
+    preferences_train = planning.Preferences(
+        weights={"walk": 0.1, "train": 0.9})
+    preferences_walk = planning.Preferences(
+        weights={
+            "walk": 0.9,
+            "train": 0.1})
+
+    start_time = time.time()
+
+    if nb_processes <= 0:
+        blocking = True
+    else:
+        blocking = False
+
+    for i in range(nb_plans):
+        plan_train = mycity.request_plan(start,
+                                         target,
+                                         preferences_train,
+                                         blocking=blocking)
+        plan_walk = mycity.request_plan(start,
+                                        target,
+                                        preferences_walk,
+                                        blocking=blocking)
+        if not blocking:
+            plan_ids.append(plan_train)
+            plan_ids.append(plan_walk)
+
+    if not blocking:
+        plans = mycity.get_plans(plan_ids)
+
+    return time.time() - start_time
+
+
+nb_plans = 5000  # x2, because walk plan and train plan
+# for nb_processes in [0,1,4,8]:
+for nb_processes in range(9):
+    time_diff = _compute_plans(nb_plans, nb_processes)
+    print("nb processes:", nb_processes, "time:", time_diff)

@@ -16,11 +16,27 @@ def _get_version():
     return ns['__version__']
 
 
+dependencies = (
+    "descartes",
+    "geopandas",
+    "networkx",
+    "numpy",
+    "osmnx",
+    "scipy",
+    "shapely"
+)
+
 setup(name="city_graph",
       version=_get_version(),
       packages=find_packages(),
-      description="Framework for representing a city and moving in it",
+      description="Framework for representing a city and moving around it",
+      long_description=open('README.md').read(),
       url="https://github.com/MPI-IS/CityGraph.git",
+      maintainer='Software Workshop - Max Planck Institute for Intelligent Systems',
+      maintainer_email="jean-claude.passy@tuebingen.mpg.de",
       author="Jean Claude Passy, Ivan Oreshnikov, Vincent Berenz",
-      install_requires=["networkx"],
+      install_requires=dependencies,
+      license='BSD',
+      python_requires='>=3.5',
+      scripts=["demos/city_graph_demo"],
       )

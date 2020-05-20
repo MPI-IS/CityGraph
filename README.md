@@ -1,4 +1,4 @@
-[![Build status](https://raw.githubusercontent.com/MPI-IS-BambooAgent/sw_badges/master/badges/plans/citygraph/tag.svg?sanitize=true)](https://atlas.is.localnet/bamboo/browse/BAMEI-CIT)
+[![Build status](https://raw.githubusercontent.com/MPI-IS-BambooAgent/sw_badges/master/badges/plans/citygraph/tag.svg?sanitize=true)](https://atlas.is.localnet/bamboo/browse/BAMEI-CIT/latest/)
 
 CityGraph
 =========
@@ -13,7 +13,7 @@ The application only requires `Python 3.5` or higher.
 Installation
 ------------
 
-**CityGraph** releases can be instaled from `PyPI`:
+**CityGraph** releases can be instaled from [PyPI](https://pypi.org/):
 
 ```
 $ pip install city-graph
@@ -27,7 +27,7 @@ $ cd CityGraph
 $ pip install .
 ```
 
-*NOTE*: We strongly advise to install the package in a dedicated virutal environment.
+We strongly advise to install the package in a dedicated virtual environment.
 
 Tests
 -----
@@ -44,15 +44,32 @@ Documentation
 To build the `Sphinx` documentation:
 
 ```
+$ pip install sphinx sphinx-bootstrap-theme
 $ cd doc
 $ make html
 ```
 and open the file `build/html/index.html` in your web browser.
 
+Authors
+-------
+
+[Jean-Claude Passy](https://github.com/jcpassy),
+Software Workshop - Max Planck Institute for Intelligent Systems
+
+[Ivan Oreshnikov](https://github.com/ioreshnikov),
+Software Workshop - Max Planck Institute for Intelligent Systems
+
+[Vincent Berenz](https://github.com/vincentberenz),
+Max Planck Institute for Intelligent Systems
+
 License
 -------
 
-BSD-3-Clause (see LICENSE.md)
+BSD-3-Clause (see LICENSE.md).
+
+The OSM import code contains a modified snippet of code from the project
+[osmnx](https://github.com/gboeing/osmnx) that is being distributed under the MIT License;
+for the original license file and copyright attribution see LICENSE_OSMNX.md.
 
 Copyright
 ---------

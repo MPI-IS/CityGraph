@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+from city_graph import city
+from city_graph import planning
+
+test_graph = planning.TestGraph()
+
+mycity = city.City("DemoCity", test_graph.topology, nb_processes=1)
+
+locations = mycity.get_locations()
+start = locations[0]
+target = locations[-1]
+
+print("\nlocations:", locations)
+print("start:", start)
+print("target:", target)
+
+
+preferences_train = planning.Preferences(weights={"walk": 0.1,
+                                                  "train": 0.9})
+preferences_walk = planning.Preferences(weights={"walk": 0.9,
+                                                 "train": 0.1})
+
+# computing plans
+plans = mycity.compute_plans(((start, target, preferences_train),
+                              (start, target, preferences_walk)))
+
+# printing results
+print("\n** going from", start, "to", target, "preferring train:\n")
+for step in plans[0].steps():
+    print(step)
+print("\n** going from", start, "to", target, "preferring walk:\n")
+for step in plans[1].steps():
+    print(step)

@@ -1,0 +1,357 @@
+#!/usr/bin/env python
+
+import itertools
+import city_graph
+# TODO: cleaner imports
+from city_graph.city import City, DEFAULT_LOCATION_DISTRIBUTION
+from city_graph import city_io
+from city_graph import utils
+from city_graph.types import LocationType, TransportType, PathCriterion
+
+
+"""
+In this demo, 1000 simulated persons move for a day in a city based on a
+simplified schedule (commute from home to work, stay at work,
+commute to a "leisure" location, enjoy for a while, then commute back home).
+A person is modeled using a basic state machine.
+At each time step, the information about which persons are at the same place
+is displayed.
+The city is either synthetic, or created based on real data downloaded from
+OpenStreetMap
+This demo does not attempt to be an accurate model of anything, its sole
+purpose is to complement CityGraph's API documentation with an usage example.
+
+To run it:
+
+pip install CityGraph
+city_graph_demo
+"""
+
+# configuration that will be used to create the city
+CITY_NAME = "Tuebingen"
+# config for energy based algo to create a synthetic city
+MAX_ITERATIONS = None
+CONNECTIONS_PER_STEP = 5
+# distribution: location_type : number of locations of
+# this type.
+LOCATION_DISTRIBUTION = DEFAULT_LOCATION_DISTRIBUTION
+# mobility plans will contains these extra data:
+DATA = ["distance"]
+# area of the city: longitude and latitude, in degrees
+X_LIM = (0.0, 0.05)
+Y_LIM = (0.0, 0.05)
+
+# number of simulated person
+NB_PERSONS = 1000
+
+# random seed
+SEED = 1234
+
+
+def _get_city(random_generator):
+    """
+    Returns a city, either by loading it or creating it.
+
+    param obj random_generator: Random generator
+    """
+
+    # reading saved city
+    if city_io.is_saved(CITY_NAME):
+        city = city_io.load(CITY_NAME)
+        print("loaded city", city.name)
+
+    # creating the city and saving it
+    else:
+        # creating a virtual city based on a energy based algorithm
+        city = City.build_random(CITY_NAME,
+                                 DEFAULT_LOCATION_DISTRIBUTION,
+                                 x_lim=X_LIM,
+                                 y_lim=Y_LIM,
+                                 rng=random_generator,
+                                 create_network=True,
+                                 max_iterations=MAX_ITERATIONS,
+                                 connections_per_step=CONNECTIONS_PER_STEP)
+        # saving the city for later usage
+        # (i.e. if the demo is started again, it will not recreate the city,
+        #  but it will read it from the file it was saved in)
+        # (saving in current directory)
+        path = city_io.save(city, overwrite=True)
+        print("created city", city.name, "saved in", path)
+
+    return city
+
+
+def _print_info_city(city):
+    """Prints basic info about a city."""
+
+    locations = list(city.get_locations())
+    print(city.name, "has", len(locations), "locations")
+    for location_type in city.get_location_types():
+        locations_t = city.get_locations_by_types(location_type)
+        print("\t", location_type, ":", len(locations_t))
+    # TODO: revive once related code merged
+    # plot_city(city)
+
+
+class Person:
+    """Class representing a person moving around a city."""
+
+    START = 0
+    HOME = 1
+    WORK = 2
+    LEISURE = 3
+
+    def __init__(self, work, home, leisure,
+                 working_hours, leisure_time,
+                 preferences):
+        # work, home, leisure: locations in the city
+        #     work: where the person work
+        #     home: where the person lives
+        #     leisure: where the person goes out after work
+        # working_hours : how long the person works in a day
+        # leisure time: how long the person enjoys getting out after work
+        # preferences: criterion used by the person for generating transportation plans
+        self.work = work
+        self.home = home
+        self.leisure = leisure
+        self.working_hours = working_hours
+        self.leisure_time = leisure_time
+        self.preferences = preferences
+        self.status = self.START
+        self.start_time = None
+        self.plan = None
+
+    def _get_plan(self, city, loc1, loc2):
+
+        # returns a plan for going from loc1 to loc2
+        # based on preferences. If no valid plan can be
+        # found, then loc2 is replaced by its closest location
+        # in the city
+        # (until a plan is found)
+        valid_plan = False
+        excluded = []
+        loc = loc2
+        while not valid_plan:
+            plan = city.request_plan(loc1,
+                                     loc,
+                                     self.preferences)
+            if plan.is_valid():
+                # found a valid plan, returning it
+                return plan
+            # no valid plan, trying to go to closest
+            # alternative position instead
+            loc = city.get_closest(loc2, None, excluded)
+        raise ValueError("failed to find plan from", loc1, "to", loc2)
+
+    def run(self, city, current_time):
+        # returns where the person is at the current time,
+        # which is either a location, or an edge between two
+        # locations (edge: (location1, location2, transport type))
+
+        if self.status == self.START:
+
+            # person is between home and work
+
+            # just leaving home, computing plan to go to work
+            if self.plan is None:
+                self.plan = self._get_plan(city,
+                                           self.home,
+                                           self.work)
+
+            # did the person already arrived to work ?
+            finished, edge = self.plan.where(current_time)
+
+            # no, still commuting, returning edge where the person is
+            if not finished:
+                return edge
+
+            # arrived at work, switch status to WORK
+            self.status = self.WORK
+            self.start_time = current_time
+            return self.work
+
+        if self.status == self.WORK:
+
+            # person is at work
+
+            # he/she still has to work
+            if current_time - self.start_time < self.working_hours:
+                return self.work
+
+            # leaving work, switching status to LEISURE and
+            # creating plan to go to leisure location
+            self.status = self.LEISURE
+            self.plan = self._get_plan(city,
+                                       self.work,
+                                       self.leisure)
+            # returning first edge of the plan
+            return self.plan.where(current_time)[1]
+
+        if self.status == self.LEISURE:
+
+            # person is on leisure time,
+            # either traveling to the location or already there
+
+            # commuting plan to leisure location was still active at previous iteration
+            if self.plan is not None:
+                finished, edge = self.plan.where(current_time)
+
+                # arriving at leasure time destination
+                if finished:
+                    self.plan = None
+                    self.starting_time = current_time
+                    return self.leisure
+
+                # keep commuting
+                return edge
+
+            # at the leisure location
+
+            # finished "leisuring", creating plan to go home
+            if current_time - self.starting_time > self.leisure_time:
+                self.status = self.HOME
+                self.plan = self._get_plan(city, self.leisure,
+                                           self.home)
+                return self.plan.where(current_time)[1]
+
+            # still enjoying
+            return self.leisure
+
+        if self.status == self.HOME:
+
+            # person is already home or commuting back home
+            # at the end of the day
+
+            # commuting plan was still active at previous iteration
+            if self.plan is not None:
+                finished, edge = self.plan.where(current_time)
+
+                # arriving home
+                if finished:
+                    self.plan = None
+                    self.starting_time = current_time
+                    return self.home
+
+                # still communiting
+                return edge
+
+            # at home
+            return self.home
+
+
+def _create_random_person(rng):
+    # create an instance of Person
+
+    # mobility is the dictionary which set the
+    # preference weight for each transport type
+    # (e.g {car:0.1,walk:0.5} means the person prefer
+    # walking over driving)
+    mobility = {}
+    for transport_type in TransportType:
+        mobility[transport_type] = rng()
+
+    # average speed is the dictionary which set the
+    # average speed of the person when using a specific
+    # transportation type (in meter per seconds).
+    # Here we use the default speed for all,
+    # except for the walking speed
+    average_speeds = city_graph.types.AVERAGE_SPEEDS
+    if rng() < 0.5:
+        walk_speed = average_speeds[TransportType.WALK] + 0.5 * rng()
+    else:
+        walk_speed = average_speeds[TransportType.WALK] - 0.5 * rng()
+    average_speeds[TransportType.WALK] = walk_speed
+
+    # the criterion for selecting a path between two locations
+    # TODO: should be duration, but not supported for virtual cities ?
+    criterion = PathCriterion.DISTANCE
+
+    # this object encapsulate all the configuration of this specific
+    # person for shortest path computation
+    preferences = city_graph.types.Preferences(criterion,
+                                               mobility,
+                                               average_speeds)
+
+    # the home location of the person
+    home = rng.choice(city.get_locations_by_types(LocationType.HOUSEHOLD))
+
+    # the work location of the person
+    work = rng.choice(city.get_locations_by_types(LocationType.OFFICE))
+
+    # the selected leisure location of the person
+    leisure_places = city.get_locations_by_types((LocationType.GAMBLING,
+                                                  LocationType.NIGHTCLUB,
+                                                  LocationType.THEATER,
+                                                  LocationType.SOCIAL_CENTER,
+                                                  LocationType.SPORTS_CENTER,
+                                                  LocationType.BAR,
+                                                  LocationType.RESTAURANT))
+    leisure_places = list(itertools.chain.from_iterable(leisure_places.values()))
+    leisure = rng.choice(leisure_places)
+
+    # working hours, between 5 and 10 hours
+    working_hours = rng.choice(range(5, 10)) * 3600
+
+    # leisure duration, between 1 and 4 hours
+    leisure_time = rng.choice(range(1, 4)) * 3600
+
+    # returning the person
+    return Person(work, home, leisure,
+                  working_hours, leisure_time,
+                  preferences)
+
+
+if __name__ == "__main__":
+
+    random_generator = utils.RandomGenerator(seed=SEED)
+
+    # creating a virtual city
+    # (or reading it from file if not running this demo for the first time)
+    city = _get_city(random_generator)
+
+    # printing basic infos about the city
+    _print_info_city(city)
+
+    # creating 1000 random virtual persons
+    print("creating persons...")
+    persons = [_create_random_person(random_generator) for _ in range(NB_PERSONS)]
+    print("done")
+
+    # running 1 days of simulation of this simplified world:
+    # everybody : commute from home to work
+    #             stay at work for the duration of their working hours
+    #             commute to a "leasure location" for 1 to 3 hours
+    #             commute back home and stay there
+    # at each time step: printing all encounters
+
+    current_time = 0
+    time_step = 5 * 60  # 5 minutes
+    end_time = 24 * 60 * 60  # one day
+
+    while current_time < end_time:
+
+        print("\ncurrent time:", current_time)
+
+        # dict, key: location or road,
+        #       value: list of persons index in this location/road
+        locations = {}
+
+        for index, person in enumerate(persons):
+            # where the person of this index is now
+            location = person.run(city, current_time)
+            # storing that this person is there
+            try:
+                locations[location].append(index)
+            except:
+                locations[location] = [index]
+
+        # for each location, printing if several persons
+        # are there
+        for location, indexes in locations.items():
+            if len(indexes) > 1:
+                print("Persons",
+                      ",".join([str(i) for i in indexes]),
+                      "are all at:",
+                      location)
+
+        current_time += time_step
