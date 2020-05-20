@@ -672,31 +672,31 @@ class City:
             return plan
 
         for step in plan.steps():
-            start_locations = tuple(self._locations_by_node.get(step.start))
-            target_locations = tuple(self._locations_by_node.get(step.target))
+            start_locations = self._locations_by_node.get(step.start)
+            target_locations = self._locations_by_node.get(step.target)
 
             if not start_locations:
                 node_data = self._topology.nodes[step.start]
                 lon = node_data[self._topology.NODE_LONG]
                 lat = node_data[self._topology.NODE_LAT]
-                start_locations = (
+                start_locations = [
                     self._location_cls(
                         LocationType.NONE,
                         node=step.start,
-                        coordinates=Point(lon, lat)),  # mind the comma!
-                )
+                        coordinates=Point(lon, lat))
+                ]
             if not target_locations:
                 node_data = self._topology.nodes[step.start]
                 lon = node_data[self._topology.NODE_LONG]
                 lat = node_data[self._topology.NODE_LAT]
-                target_locations = (
+                target_locations = [
                     self._location_cls(
                         LocationType.NONE,
                         node=step.target,
-                        coordinates=Point(lon, lat)),  # mind the comma!
-                )
+                        coordinates=Point(lon, lat))
+                ]
 
-            step.start = start_locations
-            step.target = target_locations
+            step.start = tuple(start_locations)
+            step.target = tuple(target_locations)
 
         return plan
