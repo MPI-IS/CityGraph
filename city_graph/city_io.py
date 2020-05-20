@@ -73,10 +73,13 @@ def save(city, path=None, overwrite=False):
     return path
 
 
-def load(city_name, path=None):
+def load(city_name, path=None, nb_processes=None):
     """
     :param str city_name: name of the city to load
     :param str path: path of the folder where cities are saved. default: current directory
+    :param int nb_processes: if not None (the default), the city will spawn nb_processes
+        for plan computation. Otherwise, it will spawn the same number of processes as when
+        it was saved.
     :raises: :py:class:`FileNotFoundError`: if no city of this name has been saved
     :returns: An instance of :py:class:`.city.City`
     """
@@ -88,4 +91,7 @@ def load(city_name, path=None):
     with open(path, "rb") as f:
         city = pickle.load(f)
 
+    if nb_processes is not None:
+        city.reset_multiprocesses(nb_processes)
+        
     return city

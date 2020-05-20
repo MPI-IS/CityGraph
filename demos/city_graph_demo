@@ -45,6 +45,12 @@ Y_LIM = (0.0,0.05)
 # number of simulated person
 NB_PERSONS = 1000
 
+# if true, all travel plans will be precomputed,
+# possibly using multiprocessing computation
+# if not, travel plans are computed on the fly.
+PRECOMPUTED_PLANS = True
+NB_PROCESSES = 14 # set to None for no multiprocesses
+
 # random seed
 SEED = 1234
 
@@ -81,6 +87,9 @@ def _get_city(random_generator):
         path = city_io.save(city, overwrite=True)
         print("created city", city.name, "saved in", path)
 
+    if NB_PROCESSES is not None:
+        city.set_multiprocesses(NB_PROCESSES)
+        
     return city
 
 
@@ -124,8 +133,30 @@ class Person:
         self.status = self.START
         self.start_time = None
         self.plan = None
-
+        self.plans = None
+        self.travels = [(self.home,self.work),
+                        (self.work,self.leisure),
+                        (self.leisure,self.home)]
+        
+    def start_planning(self,city):
+        self.plan_ids = [ city.request_plan(travel[0],
+                                            travel[1],
+                                            self.preferences,
+                                            blocking=False)
+                          for travel in self.travels ]
+            
+    def finalize_planning(self,city):
+        self.plans = {}
+        plans = city.retrieve_plans(self.plan_ids)
+        for travel,plan_id in zip(self.travels,self.plan_ids):
+            self.plans[travel]=plans[plan_id]
+        
     def _get_plan(self,city,loc1,loc2):
+
+        # plans have been precomputed
+        if self.plans is not None:
+            return self.plans[(loc1,loc2)]
+        
         # returns a plan for going from loc1 to loc2
         # based on preferences. If no valid plan can be
         # found, then loc2 is replaced by its closest location
@@ -313,6 +344,7 @@ def _create_random_person(rng):
                   preferences)
 
 
+        
 if __name__ == "__main__":
 
     random_generator = utils.RandomGenerator(seed=SEED)
@@ -328,6 +360,15 @@ if __name__ == "__main__":
     print("creating persons...")
     persons = [_create_random_person(random_generator) for _ in range(NB_PERSONS)]
     print("done")
+
+    # if request to precompute all plans, doing so
+    if PRECOMPUTED_PLANS:
+        print("computing all plans")
+        for person in persons:
+            person.start_planning(city)
+        for person in persons:
+            person.finalize_planning(city)
+        print("done")
     
     # running 1 days of simulation of this simplified world:
     # everybody : commute from home to work

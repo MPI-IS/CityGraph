@@ -201,6 +201,15 @@ class City:
         self._pool.join()
 
 
+    def set_multiprocesses(self,nb_processes):
+        """
+        Spawn processes for multiprocessing (see :py:meth:`.City.request_plan`).
+        Warning: if processes are already running, they will be killed.
+        """
+        self._pool.terminate()
+        self._pool.join()
+        self._pool = multiprocessing.Pool(processes=nb_processes)
+        
     def pathable_location(self,location):
         # TODO: to remove.
         # used as temporary fix !
@@ -622,12 +631,8 @@ class City:
             except KeyError:
                 result = None
             if result:
-                steps = result.get()
-                plan = Plan()
-                if steps is not None:
-                    plan.set_steps(steps)
-                self._locations_manager.from_nodes_to_locations(plan)
-                plans[plan_id] = plan
+                plan = result.get()
+                plans[plan_id]=plan
         return plans
 
     def _from_nodes_to_locations(self, plan):
