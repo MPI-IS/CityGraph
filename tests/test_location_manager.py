@@ -92,17 +92,6 @@ class TestLocationManager(RandomTestCase):
         even_indexes = [e.index for e in evens]
         self.assertListEqual(even_indexes, [0, 2, 4, 6, 8])
 
-    def test_locations_node_mapping(self):
-        """Checks that the locations are organized by node."""
-
-        node0 = [l.index for l in self.lm._locations_by_node[0]]
-        node1 = [l.index for l in self.lm._locations_by_node[1]]
-        node2 = [l.index for l in self.lm._locations_by_node[2]]
-
-        self.assertListEqual(node0, [0, 3, 6, 9])
-        self.assertListEqual(node1, [1, 4, 7, 10])
-        self.assertListEqual(node2, [2, 5, 8])
-
     def test_get_closest(self):
         random_loc = self.rng.choice(self._locations)
         self.lm.get_closest(random_loc, "extra")

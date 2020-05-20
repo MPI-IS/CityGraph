@@ -1,4 +1,5 @@
 import time
+from functools import partial
 from .types import TransportType,AVERAGE_SPEEDS
 
 
@@ -33,9 +34,19 @@ class PlanStep:
 
     def __str__(self):
         attrs = vars(self)
-        s = "PlanStep:\n\t"
-        return s + "\n\t".join([attr + ": " + str(getattr(self, attr))
-                                for attr in attrs])
+        output = "PlanStep:\n"
+        output += "\tmode: {}\n".format(self.mode)
+        start = (
+            set(str(loc) for loc in self.start)
+            if isinstance(self.start, list)
+            else str(self.start))
+        target = (
+            set(str(loc) for loc in self.target)
+            if isinstance(self.target, list)
+            else str(self.target))
+        output += "\tstart: {}\n".format(start)
+        output += "\ttarget: {}\n".format(target)
+        return output
 
 
 class Plan:
@@ -204,7 +215,8 @@ class Plan:
 def get_plan(topology,
              start_location,
              target_location,
-             preferences):
+             preferences,
+             locations_by_nodes):
     """
     Compute ap plan that describes how to go from the start to the target location
     under the provided user preferences.
@@ -239,12 +251,36 @@ def get_plan(topology,
         average_speed = preferences.get_average_speed(mode)
         duration = distance / average_speed
         return duration
-        
+
     # for each segment in the path, creating a plan step, i.e.
     # start location, end location, transportation mode
-    plan_steps = [PlanStep(start, target, mode, _get_duration(distance,mode,preferences) )
-                  for start, target, mode, distance in zip(path, path[1:],
-                                                           data["type"], data["distance"])]
+    def _get_location(start_location,
+                      target_location,
+                      locations_by_nodes,
+                      size,
+                      first,
+                      node,
+                      index):
+        if first and index==0:
+            return start_location
+        if (not first) and index==size:
+            return target_location
+        return locations_by_nodes[node][0]
+
+    get_location_ = partial(_get_location,
+                            start_location,
+                            target_location,
+                            locations_by_nodes,
+                            len(path)-1)
+        
+    plan_steps = [ PlanStep(get_location_(True,start,index),
+                            get_location_(False,target,index),
+                            mode,
+                            _get_duration(distance,mode,preferences) )
+                   for index,(start, target, mode, distance)
+                   in enumerate(zip(path, path[1:],
+                                    data["type"],
+                                    data["distance"])) ]
 
     # adding to the steps the extra attributes (e.g. distance, duration)
     # also returned by the topology
