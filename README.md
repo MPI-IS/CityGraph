@@ -44,6 +44,7 @@ Documentation
 To build the `Sphinx` documentation:
 
 ```
+$ pip install sphinx sphinx-bootstrap-theme
 $ cd doc
 $ make html
 ```

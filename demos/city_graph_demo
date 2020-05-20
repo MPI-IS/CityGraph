@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import random
 import itertools
 import city_graph
 # TODO: cleaner imports
@@ -11,13 +10,13 @@ from city_graph.types import LocationType, TransportType, PathCriterion
 
 
 """
-In this demo, 1000 simulated persons move for a day in a city based on a 
-simplified schedule (commute from home to work, stay at work, 
+In this demo, 1000 simulated persons move for a day in a city based on a
+simplified schedule (commute from home to work, stay at work,
 commute to a "leisure" location, enjoy for a while, then commute back home).
 A person is modeled using a basic state machine.
-At each time step, the information about which persons are at the same place 
+At each time step, the information about which persons are at the same place
 is displayed.
-The city is either synthetic, or created based on real data downloaded from 
+The city is either synthetic, or created based on real data downloaded from
 OpenStreetMap
 This demo does not attempt to be an accurate model of anything, its sole
 purpose is to complement CityGraph's API documentation with an usage example.
@@ -39,8 +38,8 @@ LOCATION_DISTRIBUTION = DEFAULT_LOCATION_DISTRIBUTION
 # mobility plans will contains these extra data:
 DATA = ["distance"]
 # area of the city: longitude and latitude, in degrees
-X_LIM = (0.0,0.05)
-Y_LIM = (0.0,0.05)
+X_LIM = (0.0, 0.05)
+Y_LIM = (0.0, 0.05)
 
 # number of simulated person
 NB_PERSONS = 1000
@@ -49,11 +48,12 @@ NB_PERSONS = 1000
 SEED = 1234
 
 
-    
 def _get_city(random_generator):
+    """
+    Returns a city, either by loading it or creating it.
 
-    # if city_name has already been saved, reading it from file and
-    # returning it. Otherwise creating it, saving it and returning it
+    param obj random_generator: Random generator
+    """
 
     # reading saved city
     if city_io.is_saved(CITY_NAME):
@@ -71,9 +71,6 @@ def _get_city(random_generator):
                                  create_network=True,
                                  max_iterations=MAX_ITERATIONS,
                                  connections_per_step=CONNECTIONS_PER_STEP)
-        # asking the algo to create edges/roads for all
-        # known transport type (e.g. walk, train, bus, etc)
-        energy_args = {"connection_types": list(TransportType)}
         # saving the city for later usage
         # (i.e. if the demo is started again, it will not recreate the city,
         #  but it will read it from the file it was saved in)
@@ -85,8 +82,7 @@ def _get_city(random_generator):
 
 
 def _print_info_city(city):
-
-    # print basic information about the city
+    """Prints basic info about a city."""
 
     locations = list(city.get_locations())
     print(city.name, "has", len(locations), "locations")
@@ -98,8 +94,8 @@ def _print_info_city(city):
 
 
 class Person:
-    # modeling a person with a simplified schedule
-    
+    """Class representing a person moving around a city."""
+
     START = 0
     HOME = 1
     WORK = 2
@@ -124,8 +120,8 @@ class Person:
         self.status = self.START
         self.start_time = None
         self.plan = None
-        
-    def _get_plan(self,city,loc1,loc2):
+
+    def _get_plan(self, city, loc1, loc2):
 
         # returns a plan for going from loc1 to loc2
         # based on preferences. If no valid plan can be
@@ -144,15 +140,14 @@ class Person:
                 return plan
             # no valid plan, trying to go to closest
             # alternative position instead
-            loc = city.get_closest(loc2,None,excluded)
-        raise ValueError("failed to find plan from",loc1,"to",loc2)
-        
-        
+            loc = city.get_closest(loc2, None, excluded)
+        raise ValueError("failed to find plan from", loc1, "to", loc2)
+
     def run(self, city, current_time):
         # returns where the person is at the current time,
         # which is either a location, or an edge between two
         # locations (edge: (location1, location2, transport type))
-        
+
         if self.status == self.START:
 
             # person is between home and work
@@ -162,10 +157,10 @@ class Person:
                 self.plan = self._get_plan(city,
                                            self.home,
                                            self.work)
-                
+
             # did the person already arrived to work ?
             finished, edge = self.plan.where(current_time)
-            
+
             # no, still commuting, returning edge where the person is
             if not finished:
                 return edge
@@ -174,7 +169,7 @@ class Person:
             self.status = self.WORK
             self.start_time = current_time
             return self.work
-        
+
         if self.status == self.WORK:
 
             # person is at work
@@ -200,7 +195,7 @@ class Person:
             # commuting plan to leisure location was still active at previous iteration
             if self.plan is not None:
                 finished, edge = self.plan.where(current_time)
-                
+
                 # arriving at leasure time destination
                 if finished:
                     self.plan = None
@@ -215,7 +210,7 @@ class Person:
             # finished "leisuring", creating plan to go home
             if current_time - self.starting_time > self.leisure_time:
                 self.status = self.HOME
-                self.plan = self._get_plan(city,self.leisure,
+                self.plan = self._get_plan(city, self.leisure,
                                            self.home)
                 return self.plan.where(current_time)[1]
 
@@ -246,7 +241,7 @@ class Person:
 
 def _create_random_person(rng):
     # create an instance of Person
-    
+
     # mobility is the dictionary which set the
     # preference weight for each transport type
     # (e.g {car:0.1,walk:0.5} means the person prefer
@@ -306,7 +301,6 @@ def _create_random_person(rng):
                   preferences)
 
 
-        
 if __name__ == "__main__":
 
     random_generator = utils.RandomGenerator(seed=SEED)
@@ -315,7 +309,7 @@ if __name__ == "__main__":
     # (or reading it from file if not running this demo for the first time)
     city = _get_city(random_generator)
 
-    # printing basic infos about the city 
+    # printing basic infos about the city
     _print_info_city(city)
 
     # creating 1000 random virtual persons
@@ -331,8 +325,8 @@ if __name__ == "__main__":
     # at each time step: printing all encounters
 
     current_time = 0
-    time_step = 5*60  # 5 minutes
-    end_time = 24*60*60 # one day
+    time_step = 5 * 60  # 5 minutes
+    end_time = 24 * 60 * 60  # one day
 
     while current_time < end_time:
 
@@ -355,9 +349,9 @@ if __name__ == "__main__":
         # are there
         for location, indexes in locations.items():
             if len(indexes) > 1:
-                 print("Persons",
-                       ",".join([str(i) for i in indexes]),
-                       "are all at:",
-                       location)
+                print("Persons",
+                      ",".join([str(i) for i in indexes]),
+                      "are all at:",
+                      location)
 
         current_time += time_step

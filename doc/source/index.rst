@@ -64,6 +64,7 @@ To build the ``Sphinx`` documentation:
 
 .. code::
 
+    $ pip install sphinx sphinx-bootstrap-theme
     $ cd doc
     $ make html
 
