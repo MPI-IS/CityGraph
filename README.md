@@ -38,6 +38,15 @@ To run the tests, simply do:
 $ python -m unittest
 ```
 
+Demos
+-----
+
+After (pip) installation, to run the demo:
+
+```
+$ city_graph_demo
+```
+
 Documentation
 -------------
 
